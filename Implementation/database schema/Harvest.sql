@@ -1,0 +1,52 @@
+CREATE TABLE User (
+	user_id INTEGER(11) NOT NULL AUTO_INCREMENT,
+	name VARCHAR(50),
+	api_key VARCHAR(50) NOT NULL,
+	take_profit INTEGER(3) NOT NULL,
+	stop_loss INTEGER(3) NOT NULL,
+	PRIMARY KEY (user_id)
+);
+
+CREATE TABLE Cryptocurrency(
+	crypto_id INTEGER(11) NOT NULL AUTO_INCREMENT,
+	crypto_name VARCHAR(50) NOT NULL,
+	table_name VARCHAR(50),
+	crypto_pair VARCHAR(50),
+	user_id INTEGER(11) NOT NULL,
+	PRIMARY KEY(crypto_id)
+);
+
+CREATE TABLE XRP(
+	id INTEGER(11) NOT NULL AUTO_INCREMENT,
+	timestamp DATETIME,
+	open DECIMAL(10,2),
+	high DECIMAL(10,2),
+	low DECIMAL(10,2),
+	close DECIMAL(10,2),
+	volume DECIMAL(10,2),
+	PRIMARY KEY(id)
+);
+
+CREATE TABLE XRP_SMA(
+	id INTEGER(11) NOT NULL AUTO_INCREMENT,
+	sma_fast DECIMAL(10,2),
+	sma_slow DECIMAL(10,2),
+	PRIMARY KEY(id)
+);
+
+CREATE TABLE XRP_MACD(
+	id INTEGER(11) NOT NULL AUTO_INCREMENT,
+	sma_fast DECIMAL(10,2),
+	sma_slow DECIMAL(10,2),
+	macd DECIMAL(10,2),
+	signal_line DECIMAL(10,2),
+	PRIMARY KEY(id)
+);
+
+CREATE TABLE XRP_ADX(
+	id INTEGER(11) NOT NULL AUTO_INCREMENT,
+	plus_di DECIMAL(10,2),
+	minus_di DECIMAL(10,2),
+	adx DECIMAL(10,2),
+	PRIMARY KEY(id)
+);
