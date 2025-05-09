@@ -18,35 +18,39 @@ CREATE TABLE Cryptocurrency(
 
 CREATE TABLE XRP(
 	id INTEGER(11) NOT NULL AUTO_INCREMENT,
-	timestamp DATETIME,
-	open DECIMAL(10,2),
-	high DECIMAL(10,2),
-	low DECIMAL(10,2),
-	close DECIMAL(10,2),
-	volume DECIMAL(10,2),
+	open_timestamp DATETIME,
+	open DECIMAL(16,6),
+	high DECIMAL(16,6),
+	low DECIMAL(16,6),
+	close DECIMAL(16,6),
+	volume DECIMAL(16,6),
+	close_timestamp DATETIME,
+	quote_asset_volume DECIMAL(16,6),
+	num_trades INTEGER(11),
 	PRIMARY KEY(id)
 );
 
 CREATE TABLE XRP_SMA(
-	id INTEGER(11) NOT NULL AUTO_INCREMENT,
-	sma_fast DECIMAL(10,2),
-	sma_slow DECIMAL(10,2),
+	id INTEGER(11) NOT NULL,
+	sma_fast DECIMAL(16,6),
+	sma_slow DECIMAL(16,6),
 	PRIMARY KEY(id)
 );
 
 CREATE TABLE XRP_MACD(
-	id INTEGER(11) NOT NULL AUTO_INCREMENT,
-	sma_fast DECIMAL(10,2),
-	sma_slow DECIMAL(10,2),
-	macd DECIMAL(10,2),
-	signal_line DECIMAL(10,2),
+	id INTEGER(11) NOT NULL,
+	ema_fast DECIMAL(16,6),
+	ema_slow DECIMAL(16,6),
+	macd DECIMAL(16,6),
+	signal_line DECIMAL(16,6),
 	PRIMARY KEY(id)
 );
 
 CREATE TABLE XRP_ADX(
-	id INTEGER(11) NOT NULL AUTO_INCREMENT,
-	plus_di DECIMAL(10,2),
-	minus_di DECIMAL(10,2),
-	adx DECIMAL(10,2),
+	id INTEGER(11) NOT NULL,
+	atr DECIMAL(16,6),
+	plus_di DECIMAL(16,6),
+	minus_di DECIMAL(16,6),
+	adx DECIMAL(16,6),
 	PRIMARY KEY(id)
 );
