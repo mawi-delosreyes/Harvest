@@ -23,13 +23,13 @@ class DataRetrieval:
         response = requests.get(self.url, params=params)
         data = response.json()[0]
         
-        open_timestamp = datetime.datetime.fromtimestamp(data[0]/1000.0)
+        open_timestamp = datetime.fromtimestamp(data[0]/1000.0)
         open = data[1]
         high = data[2]
         low = data[3]
         close = data[4]
         volume = data[5]
-        close_timestamp = datetime.datetime.fromtimestamp(data[6]/1000.0)
+        close_timestamp = datetime.fromtimestamp(data[6]/1000.0)
         quote_asset_volume = data[7]
         num_trades = data[8]
 
