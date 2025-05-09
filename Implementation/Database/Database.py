@@ -41,8 +41,7 @@ class Database:
         if self.conn is None or not self.conn.is_connected():
             self.connectDB()
         if self.conn is None:
-            print("Failed to connect to database.")
-            return
+            raise ConnectionError("Failed to connect to database.")
 
         placeholders = ", ".join(["%s"] * len(values))
         insert_query = f"""INSERT INTO {table} {columns} VALUES ({placeholders})"""
@@ -51,7 +50,6 @@ class Database:
         cur.execute(insert_query, values)
         self.conn.commit()
 
-        return cur.lastrowid
 
     def closeDB(self):
         if self.conn is not None or self.conn.is_connected():

@@ -1,7 +1,8 @@
 import requests
 import time
 from datetime import datetime
-from Database import Database
+from Implementation.Database.Database import Database
+from Implementation.Logging.Logger import Logger
 
 class DataRetrieval:
     def __init__(self, crypto, cryptoPair):
@@ -9,6 +10,7 @@ class DataRetrieval:
         self.cryptoPair = cryptoPair.lower()
         self.interval = "5m"
         self.url = "https://api.pro.coins.ph/openapi/quote/v1/klines"
+        self.logger = Logger(crypto)
 
     def getPrice(self):
 
@@ -35,8 +37,13 @@ class DataRetrieval:
 
         crypto_columns = "(open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)"
         crypto_data_value = (open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)
-        Database().saveDB(self.crypto, crypto_columns, crypto_data_value)
-
+        
+        try:
+            Database().saveDB(self.crypto, crypto_columns, crypto_data_value)
+            self.logger.info(self.crypto + " Data Saved - " + str(data))
+        except Exception as e:
+            self.logger.error(e)
+            
 
 
 if __name__ == "__main__":
