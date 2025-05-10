@@ -12,7 +12,7 @@ class MACD:
         self.prev_fast_ema = prev_fast_ema
         self.prev_slow_ema = prev_slow_ema
         self.prev_signal = prev_signal
-
+        self.result = None
 
     def computeEMA(self):
         if len(self.close_data) < self.slow:
@@ -49,4 +49,4 @@ class MACD:
         macd = fast_ema - slow_ema
         signal_line = self.computeSignalLine(macd)
 
-        return fast_ema, slow_ema, macd, signal_line
+        self.result = (fast_ema, slow_ema, macd, signal_line)

@@ -42,6 +42,7 @@ class ADX:
         self.prev_plus_dm14 = prev_plus_dm14
         self.prev_minus_dm14 = prev_minus_dm14
         self.prev_adx = prev_adx
+        self.result = None
 
     def computeADX(self):
         if len(self.high) < self.period + 1:
@@ -87,62 +88,4 @@ class ADX:
             dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
             adx = ((self.prev_adx * (self.period - 1)) + dx) / self.period
 
-        return adx, atr, plus_dm14, minus_dm14
-
-
-
-
-'''
-class ADX:
-    def __init__(self, high, low, close, period, prev_atr, prev_plus_dm14, prev_minus_dm14, prev_adx):
-        self.high = high
-        self.low = low
-        self.close = close
-        self.period = period
-        self.prev_atr = prev_atr
-        self.prev_plus_dm14 = prev_plus_dm14
-        self.prev_minus_dm14 = prev_minus_dm14
-        self.prev_adx = prev_adx
-
-
-    def computeADX(self):
-        if len(self.high) < self.period:
-            print("Not enough data to compute ADX")
-            return None, None, None, None
-
-        # Get latest ATR
-        atr = ATR(self.high, self.low, self.close, self.period, self.prev_atr).computeATR()
-        if atr is None or atr == 0:
-            return None, None, None, None
-
-        # Compute latest directional movements
-        up_move = self.high[-1] - self.high[-2]
-        down_move = self.low[-2] - self.low[-1]
-
-        plus_dm = up_move if up_move > down_move and up_move > 0 else 0
-        minus_dm = down_move if down_move > up_move and down_move > 0 else 0
-
-        # Wilder's smoothing
-        if self.prev_plus_dm14 is not None and self.prev_minus_dm14 is not None:
-            plus_dm14 = self.prev_plus_dm14 - (self.prev_plus_dm14 / self.period) + plus_dm
-            minus_dm14 = self.prev_minus_dm14 - (self.prev_minus_dm14 / self.period) + minus_dm
-        else:
-            plus_dm = []
-            minus_dm = []
-
-            for i in range(1, len(self.high)):
-                # +DM is the difference between the current high and the previous high if greater than the current low and previous low difference
-                plus_dm.append(max(0, self.high[i] - self.high[i-1]) if self.high[i] - self.high[i-1] > self.low[i-1] - self.low[i] else 0)
-                # -DM is the difference between the current low and the previous low if greater than the current high and previous high difference
-                minus_dm.append(max(0, self.low[i-1] - self.low[i]) if self.low[i-1] - self.low[i] > self.high[i] - self.high[i-1] else 0)
-
-
-
-        plus_di = 100 * (plus_dm14 / atr)
-        minus_di = 100 * (minus_dm14 / atr)
-
-        dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
-        adx = ((self.prev_adx * (self.period - 1)) + dx) / self.period
-
-        return adx, atr, plus_dm14, minus_dm14
-'''
+        self.result = (adx, atr, plus_dm14, minus_dm14)

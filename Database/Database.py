@@ -1,8 +1,9 @@
 import mysql.connector
 import configparser
+from Logging.Logger import Logger
 
 class Database:
-    def __init__(self):
+    def __init__(self, crypto):
 
         config = configparser.ConfigParser()
         config.read('Database/config.ini')
@@ -12,6 +13,7 @@ class Database:
         self.database= config['database']['db']
         self.port = config['database']['port']
         self.conn = None
+        self.logger = Logger(crypto)
 
 
     def connectDB(self):
@@ -37,7 +39,7 @@ class Database:
         return cur.fetchall()
 
     
-    def saveDB(self, table, columns, values):
+    def saveDB(self, type, table, columns, values):
         if self.conn is None or not self.conn.is_connected():
             self.connectDB()
         if self.conn is None:
@@ -45,10 +47,13 @@ class Database:
 
         placeholders = ", ".join(["%s"] * len(values))
         insert_query = f"""INSERT INTO {table} {columns} VALUES ({placeholders})"""
-        cur = self.conn.cursor()
 
+        cur = self.conn.cursor()
         cur.execute(insert_query, values)
         self.conn.commit()
+
+        self.logger.info(type + " Saved to Database : " + str(values))
+        return cur.lastrowid
 
 
     def closeDB(self):

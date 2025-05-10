@@ -3,6 +3,7 @@ class SMA:
         self.close_data = close_data
         self.fast = fast
         self.slow = slow
+        self.result = None
 
 
     def computeSMA(self):
@@ -13,4 +14,4 @@ class SMA:
         
         fast_sma = sum(self.close_data[-self.fast:]) / self.fast
         slow_sma = sum(self.close_data[-self.slow:]) / self.slow
-        return fast_sma, slow_sma
+        self.result = (fast_sma, slow_sma)
