@@ -5,11 +5,11 @@ class Database:
     def __init__(self):
 
         config = configparser.ConfigParser()
-        config.read('./config.ini')
+        config.read('Database/config.ini')
         self.hostname = config['database']['host']
         self.user= config['database']['user']
         self.password= config['database']['password']
-        self.database= config['database']['database']
+        self.database= config['database']['db']
         self.port = config['database']['port']
         self.conn = None
 

@@ -1,8 +1,8 @@
 import requests
 import time
 from datetime import datetime
-from Implementation.Database.Database import Database
-from Implementation.Logging.Logger import Logger
+from .Database import Database
+from Logging.Logger import Logger
 
 class DataRetrieval:
     def __init__(self, crypto, cryptoPair):
