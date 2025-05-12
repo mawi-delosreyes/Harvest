@@ -18,8 +18,6 @@ class Momentum:
         self.plus_di = None
         self.minus_di = None
         self.adx = None
-        self.take_profit = 10
-        self.stop_loss = 5
 
 
     def checkSignals(self):
@@ -62,47 +60,7 @@ class Momentum:
         order_url = "openapi/v1/order/test"
         current_milliseconds = int(datetime.now().timestamp() * 1000)
 
-        #trade_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()[0]['balances']['asset']
-        trade_info = {
-            "accountType":"SPOT",
-            "canDeposit":True,
-            "canTrade":True,
-            "canWithdraw":True,
-            "balances":[
-                {
-                    "asset":"PHP",
-                    "free":"100",
-                    "locked":"0"
-                }
-            ],
-            "token":"PHP",
-            "daily":{
-                "cashInLimit":"500000",
-                "cashInRemaining":"499994",
-                "cashOutLimit":"500000",
-                "cashOutRemaining":"500000",
-                "totalWithdrawLimit":"500000",
-                "totalWithdrawRemaining":"500000"
-            },
-            "monthly":{
-                "cashInLimit":"10000000",
-                "cashInRemaining":"9999157",
-                "cashOutLimit":"10000000",
-                "cashOutRemaining":"10000000",
-                "totalWithdrawLimit":"10000000",
-                "totalWithdrawRemaining":"10000000"
-            },
-            "annually":{
-                "cashInLimit":"120000000",
-                "cashInRemaining":"119998577",
-                "cashOutLimit":"120000000",
-                "cashOutRemaining":"119999488",
-                "totalWithdrawLimit":"120000000",
-                "totalWithdrawRemaining":"119998487.97"
-            },
-            "updateTime":1707273549694
-        }
-
+        trade_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()[0]['balances']['asset']
         asset = trade_info['balances'][0]['asset']
         quantity = trade_info['balances'][0]['free']
 
