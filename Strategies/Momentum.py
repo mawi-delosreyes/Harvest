@@ -3,6 +3,7 @@ from decimal import Decimal
 from Database.Database import Database
 from Database.DataRetrieval import DataRetrieval
 from Indicators.Signals import Signals
+from Logging.Logger import Logger
 from Coins.GenerateSignature import generateTradeSignature
 from datetime import datetime
 
@@ -18,6 +19,7 @@ class Momentum:
         self.plus_di = None
         self.minus_di = None
         self.adx = None
+        self.logger = Logger(crypto)
 
 
     def checkSignals(self):
@@ -82,6 +84,7 @@ class Momentum:
                 #     purchase_signal = None  
 
             if self.signal == 1:
+                self.logger.info("Buy Signal Detected")
                 purchase_signal = "buy"
                 take_profit = Decimal(crypto_price) + (2 * self.atr)
                 stop_loss = Decimal(crypto_price) - self.atr
@@ -94,7 +97,6 @@ class Momentum:
                     "timestamp": current_milliseconds,
                 }
 
-                print(params)
                 order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
 
                 headers = {
@@ -102,11 +104,11 @@ class Momentum:
                 }
                 
                 response = requests.post(order_url, params=params, headers=headers)
-
-                print(response.json())
+                self.logger.info("Order Response: {}".format(response.json()))
 
                 update_statement = "take_profit={}, stop_loss={}".format(take_profit, stop_loss)
                 Database(self.crypto).updateDB('Cryptocurrency', update_statement)
+                self.logger.info("Updated Take Profit: {}, Stop Loss: {}".format(take_profit, stop_loss))
 
         # With Position
         else: 
@@ -117,6 +119,8 @@ class Momentum:
             crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice()[4])
 
             if (crypto_price >= take_profit or crypto_price <= stop_loss) or ((self.signal == 0 or self.signal == -1) and float(wallet[self.crypto]['free']) > 0.01):
+                self.logger.info("Sell Signal Detected")
+
                 params = {
                     "symbol": self.crypto + "PHP",
                     "side": "SELL",
@@ -132,11 +136,12 @@ class Momentum:
                 }
                 
                 response = requests.post(order_url, params=params, headers=headers)
-
-                print(response.json())
+                self.logger.info("Order Response: {}".format(response.json()))
 
                 update_statement = "take_profit=0, stop_loss=0"
                 Database(self.crypto).updateDB('Cryptocurrency', update_statement)
+                self.logger.info("Updated Take Profit: 0, Stop Loss: 0")
+
 
 
 if __name__ == '__main__':
