@@ -14,6 +14,7 @@ class Database:
         self.port = config['database']['port']
         self.conn = None
         self.logger = Logger(crypto)
+        self.crypto = crypto
 
 
     def connectDB(self):
@@ -54,6 +55,21 @@ class Database:
 
         self.logger.info(type + " Saved to Database : " + str(values))
         return cur.lastrowid
+    
+
+    def updateDB(self, table, values):
+        if self.conn is None or not self.conn.is_connected():
+            self.connectDB()
+        if self.conn is None:
+            raise ConnectionError("Failed to connect to database.")
+
+        update_query = f"""Update {table} SET {values} WHERE crypto_name='{self.crypto}'"""
+
+        cur = self.conn.cursor()
+        cur.execute(update_query)
+        self.conn.commit()
+
+        self.logger.info(" Update to Database : " + self.crypto + " "+ str(values))
 
 
     def closeDB(self):

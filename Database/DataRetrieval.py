@@ -1,20 +1,22 @@
 import requests
-import time
 from datetime import datetime
 from .Database import Database
 from Logging.Logger import Logger
 from Indicators.Indicators import Indicators
+from Coins.GenerateSignature import generateSignature
+from Coins.constants import host
 
 class DataRetrieval:
     def __init__(self, crypto, cryptoPair):
         self.crypto = crypto
         self.cryptoPair = cryptoPair.lower()
         self.interval = "5m"
-        self.url = "https://api.pro.coins.ph/openapi/quote/v1/klines"
         self.logger = Logger(crypto)
 
 
     def getPrice(self):
+
+        prices_url = host + "openapi/quote/v1/klines"
 
         current_milliseconds = int(datetime.now().timestamp() * 1000)
         params = {
@@ -24,7 +26,7 @@ class DataRetrieval:
             "startTime": current_milliseconds
         }
 
-        response = requests.get(self.url, params=params)
+        response = requests.get(prices_url, params=params)
         data = response.json()[0]
         
         open_timestamp = datetime.fromtimestamp(data[0]/1000.0)
@@ -38,6 +40,27 @@ class DataRetrieval:
         num_trades = data[8]
 
         return open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades
+    
+    
+    def getWalletBalance(self):
+
+        account_url = "openapi/v1/account"
+    
+        current_milliseconds = int(datetime.now().timestamp() * 1000)
+        params = {
+            "timestamp": current_milliseconds
+        }
+
+        account_url, api_key, params['signature'] = generateSignature(account_url, params)
+
+        headers = {
+            'X-COINS-APIKEY': api_key
+        }
+
+        response = requests.get(account_url, params=params, headers=headers)
+        data = response.json()
+        
+        return data['balances']
 
 
     def saveData(self):

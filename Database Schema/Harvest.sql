@@ -10,9 +10,10 @@ CREATE TABLE User (
 CREATE TABLE Cryptocurrency(
 	crypto_id INTEGER(11) NOT NULL AUTO_INCREMENT,
 	crypto_name VARCHAR(50) NOT NULL,
-	table_name VARCHAR(50),
 	crypto_pair VARCHAR(50),
 	user_id INTEGER(11) NOT NULL,
+	take_profit DECIMAL(16,6),
+	stop_loss DECIMAL(16,6),
 	PRIMARY KEY(crypto_id)
 );
 
