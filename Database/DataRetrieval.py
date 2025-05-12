@@ -43,10 +43,9 @@ class DataRetrieval:
     
     
     def getWalletBalance(self):
-
         account_url = "openapi/v1/account"
-    
         current_milliseconds = int(datetime.now().timestamp() * 1000)
+
         params = {
             "timestamp": current_milliseconds
         }
