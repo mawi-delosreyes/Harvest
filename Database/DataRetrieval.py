@@ -3,7 +3,7 @@ from datetime import datetime
 from .Database import Database
 from Logging.Logger import Logger
 from Indicators.Indicators import Indicators
-from Coins.GenerateSignature import generateSignature
+from Coins.GenerateSignature import generateReadSignature
 from Coins.constants import host
 
 class DataRetrieval:
@@ -50,10 +50,9 @@ class DataRetrieval:
             "timestamp": current_milliseconds
         }
 
-        account_url, api_key, params['signature'] = generateSignature(account_url, params)
-
+        account_url, ro_api_key, params['signature'] = generateReadSignature(account_url, params)
         headers = {
-            'X-COINS-APIKEY': api_key
+            'X-COINS-APIKEY': ro_api_key
         }
 
         response = requests.get(account_url, params=params, headers=headers)

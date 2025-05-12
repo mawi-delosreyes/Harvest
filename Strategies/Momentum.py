@@ -3,7 +3,7 @@ from decimal import Decimal
 from Database.Database import Database
 from Database.DataRetrieval import DataRetrieval
 from Indicators.Signals import Signals
-from Coins.GenerateSignature import generateSignature
+from Coins.GenerateSignature import generateTradeSignature
 from datetime import datetime
 
 class Momentum:
@@ -57,41 +57,45 @@ class Momentum:
     def tradeExecution(self):
 
         purchase_signal = None
-        order_url = "openapi/v1/order/test"
+        order_url = "openapi/v1/order"
         current_milliseconds = int(datetime.now().timestamp() * 1000)
 
-        trade_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()[0]['balances']['asset']
-        asset = trade_info['balances'][0]['asset']
-        quantity = trade_info['balances'][0]['free']
+        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
+        wallet = {entry['asset']: entry for entry in wallet_info}
 
         # No Position
-        if asset == "PHP":
+        if float(wallet[self.crypto]['free']) < 0.01 and self.signal == 1:
 
             crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice()[4])
+            # if self.signal == 1 or self.signal == -1:
+            #     if self.signal == 1:
+            #         purchase_signal = "buy"
+            #         take_profit = Decimal(crypto_price) + (2 * self.atr)
+            #         stop_loss = Decimal(crypto_price) - self.atr
 
-            if self.signal == 1 or self.signal == -1:
-                if self.signal == 1:
-                    purchase_signal = "buy"
-                    take_profit = Decimal(crypto_price) + (2 * self.atr)
-                    stop_loss = Decimal(crypto_price) - self.atr
+                # elif self.signal == -1:
+                #     purchase_signal = "sell"
+                #     take_profit = Decimal(crypto_price) - (2 * self.atr)
+                #     stop_loss = Decimal(crypto_price) + self.atr
 
-                elif self.signal == -1:
-                    purchase_signal = "sell"
-                    take_profit = Decimal(crypto_price) - (2 * self.atr)
-                    stop_loss = Decimal(crypto_price) + self.atr
+                # else:
+                #     purchase_signal = None  
 
-                else:
-                    purchase_signal = None  
-
+            if self.signal == 1:
+                purchase_signal = "buy"
+                take_profit = Decimal(crypto_price) + (2 * self.atr)
+                stop_loss = Decimal(crypto_price) - self.atr
 
                 params = {
                     "symbol": self.crypto + "PHP",
                     "side": purchase_signal,
-                    "type": "LIMIT",
-                    "price": quantity,
+                    "type": "MARKET",
+                    "quoteOrderQty": wallet['PHP']['free'],
                     "timestamp": current_milliseconds,
                 }
-                order_url, api_key, params['signature'] = generateSignature(order_url, params)
+
+                print(params)
+                order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
 
                 headers = {
                     'X-COINS-APIKEY': api_key
@@ -99,34 +103,37 @@ class Momentum:
                 
                 response = requests.post(order_url, params=params, headers=headers)
 
+                print(response.json())
+
                 update_statement = "take_profit={}, stop_loss={}".format(take_profit, stop_loss)
                 Database(self.crypto).updateDB('Cryptocurrency', update_statement)
 
         # With Position
-        else:
-
+        else: 
             retrieve_data_query = "SELECT take_profit, stop_loss FROM Cryptocurrency WHERE crypto_name = '{}'".format(self.crypto)
             profits = Database(self.crypto).retrieveData(retrieve_data_query)
             take_profit = profits[0][0]
             stop_loss = profits[0][1]
             crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice()[4])
 
-            if (crypto_price >= take_profit or crypto_price <= stop_loss) or self.signal == 0:
+            if (crypto_price >= take_profit or crypto_price <= stop_loss) or ((self.signal == 0 or self.signal == -1) and float(wallet[self.crypto]['free']) > 0.01):
                 params = {
-                    "symbol": asset + "PHP",
+                    "symbol": self.crypto + "PHP",
                     "side": "SELL",
                     "type": "MARKET",
-                    "quantity": quantity,
+                    "quantity": int(float(wallet[self.crypto]['free']) * 100) / 100,
                     "timestamp": current_milliseconds,
                 }
 
-                order_url, api_key, params['signature'] = generateSignature(order_url, params)
+                order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
 
                 headers = {
                     'X-COINS-APIKEY': api_key
                 }
                 
                 response = requests.post(order_url, params=params, headers=headers)
+
+                print(response.json())
 
                 update_statement = "take_profit=0, stop_loss=0"
                 Database(self.crypto).updateDB('Cryptocurrency', update_statement)
