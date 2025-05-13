@@ -14,6 +14,38 @@ class DataRetrieval:
         self.logger = Logger(crypto)
 
 
+    def saveDelayedData(self, last_timestamp):
+        
+        prices_url = host + "openapi/quote/v1/klines"
+
+        start_milliseconds = int(last_timestamp.timestamp() * 1000)
+        current_milliseconds = int(datetime.now().timestamp() * 1000) - (5 * 60 * 1000)
+        params = {
+            "symbol": self.cryptoPair,
+            "interval": self.interval,
+            "startTime": start_milliseconds,
+            "endTime": current_milliseconds
+        }
+
+        response = requests.get(prices_url, params=params)
+        data = response.json()
+        for i in data:
+            open_timestamp = datetime.fromtimestamp(i[0]/1000.0)
+            open = i[1]
+            high = i[2]
+            low = i[3]
+            close = i[4]
+            volume = i[5]
+            close_timestamp = datetime.fromtimestamp(i[6]/1000.0)
+            quote_asset_volume = i[7]
+            num_trades = i[8]
+
+            crypto_columns = "(open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)"
+            crypto_data_value = (open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)
+
+            Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
+
+
     def getPrice(self):
 
         prices_url = host + "openapi/quote/v1/klines"
@@ -67,28 +99,29 @@ class DataRetrieval:
         crypto_data_value = (open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)
         
         try:
-            last_data_index = Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
+            Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
+            # last_data_index = Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
 
-            indicators = Indicators(self.crypto)
-            sma, macd, adx = indicators.runIndicators()
+            # indicators = Indicators(self.crypto)
+            # sma, macd, adx = indicators.runIndicators()
             
-            if all(value is not None for value in sma):
-                sma_table = self.crypto + "_SMA"
-                sma_columns = "(id, sma_fast, sma_slow)"
-                sma_data_values = (last_data_index, sma[0], sma[1])
-                Database(self.crypto).saveDB("SMA", sma_table, sma_columns, sma_data_values)
+            # if all(value is not None for value in sma):
+            #     sma_table = self.crypto + "_SMA"
+            #     sma_columns = "(id, sma_fast, sma_slow)"
+            #     sma_data_values = (last_data_index, sma[0], sma[1])
+            #     Database(self.crypto).saveDB("SMA", sma_table, sma_columns, sma_data_values)
 
-            if all(value is not None for value in macd):
-                macd_table = self.crypto + "_MACD"
-                macd_columns = "(id, ema_fast, ema_slow, macd, signal_line)"
-                macd_data_values = (last_data_index, macd[0], macd[1], macd[2], macd[3])
-                Database(self.crypto).saveDB("MACD", macd_table, macd_columns, macd_data_values)
+            # if all(value is not None for value in macd):
+            #     macd_table = self.crypto + "_MACD"
+            #     macd_columns = "(id, ema_fast, ema_slow, macd, signal_line)"
+            #     macd_data_values = (last_data_index, macd[0], macd[1], macd[2], macd[3])
+            #     Database(self.crypto).saveDB("MACD", macd_table, macd_columns, macd_data_values)
 
-            if all(value is not None for value in adx):
-                adx_table = self.crypto + "_ADX"
-                adx_columns = "(id, atr, plus_di, minus_di, adx)"
-                adx_data_values = (last_data_index, adx[1], adx[2], adx[3], adx[0])
-                Database(self.crypto).saveDB("ADX", adx_table, adx_columns, adx_data_values)
+            # if all(value is not None for value in adx):
+            #     adx_table = self.crypto + "_ADX"
+            #     adx_columns = "(id, atr, plus_di, minus_di, adx)"
+            #     adx_data_values = (last_data_index, adx[1], adx[2], adx[3], adx[0])
+            #     Database(self.crypto).saveDB("ADX", adx_table, adx_columns, adx_data_values)
             
         
         except Exception as e:
@@ -100,4 +133,13 @@ if __name__ == "__main__":
     crypto = "XRP"
     cryptoPair = "XRPPHP"
     retrieval = DataRetrieval(crypto, cryptoPair)
-    retrieval.saveData()
+
+    select_last_saved_data_query = "SELECT close_timestamp FROM %s ORDER BY id DESC LIMIT 1" % (crypto)
+    last_timestamp = Database(crypto).retrieveData(select_last_saved_data_query)
+
+    if len(last_timestamp) == 0:
+        retrieval.saveData()
+    elif last_timestamp[0][0].hour == datetime.now().hour and last_timestamp[0][0].minute == datetime.now().minute:
+        retrieval.saveData()
+    else:
+        retrieval.saveDelayedData(last_timestamp[0][0])

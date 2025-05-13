@@ -7,11 +7,11 @@ class Database:
 
         config = configparser.ConfigParser()
         config.read('Database/config.ini')
-        self.hostname = config['database']['host']
-        self.user= config['database']['user']
-        self.password= config['database']['password']
-        self.database= config['database']['db']
-        self.port = config['database']['port']
+        self.hostname = config['staging-database']['host']
+        self.user= config['staging-database']['user']
+        self.password= config['staging-database']['password']
+        self.database= config['staging-database']['db']
+        self.port = config['staging-database']['port']
         self.conn = None
         self.logger = Logger(crypto)
         self.crypto = crypto

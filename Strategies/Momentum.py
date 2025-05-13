@@ -1,8 +1,10 @@
 import requests
+import sys
 from decimal import Decimal
 from Database.Database import Database
 from Database.DataRetrieval import DataRetrieval
 from Indicators.Signals import Signals
+from Indicators.Indicators import Indicators
 from Logging.Logger import Logger
 from Coins.GenerateSignature import generateTradeSignature
 from datetime import datetime
@@ -34,26 +36,29 @@ class Momentum:
 
     def retrieveData(self):
 
-        col_names = "crypto.id, sma.sma_fast, sma.sma_slow, macd.ema_fast, macd.ema_slow, macd.macd, macd.signal_line, " \
-        "adx.atr, adx.plus_di, adx.minus_di, adx.adx"
+        # col_names = "crypto.id, sma.sma_fast, sma.sma_slow, macd.ema_fast, macd.ema_slow, macd.macd, macd.signal_line, " \
+        # "adx.atr, adx.plus_di, adx.minus_di, adx.adx"
 
-        select_crypto_data_query = "SELECT %s FROM %s AS crypto " % (col_names, self.crypto) 
-        select_crypto_data_query += "LEFT JOIN %s_SMA as sma ON crypto.id=sma.id " % (self.crypto)
-        select_crypto_data_query += "LEFT JOIN %s_MACD as macd ON crypto.id=macd.id "  % (self.crypto)
-        select_crypto_data_query += "LEFT JOIN %s_ADX as adx ON crypto.id=adx.id "  % (self.crypto)
-        select_crypto_data_query +=  "ORDER BY crypto.id DESC LIMIT 1"
+        # select_crypto_data_query = "SELECT %s FROM %s AS crypto " % (col_names, self.crypto) 
+        # select_crypto_data_query += "LEFT JOIN %s_SMA as sma ON crypto.id=sma.id " % (self.crypto)
+        # select_crypto_data_query += "LEFT JOIN %s_MACD as macd ON crypto.id=macd.id "  % (self.crypto)
+        # select_crypto_data_query += "LEFT JOIN %s_ADX as adx ON crypto.id=adx.id "  % (self.crypto)
+        # select_crypto_data_query +=  "ORDER BY crypto.id DESC LIMIT 1"
 
-        latest_data = Database(self.crypto).retrieveData(select_crypto_data_query)[0]
-        self.sma_fast = latest_data[1]
-        self.sma_slow = latest_data[2]
-        self.ema_fast = latest_data[3]
-        self.ema_slow = latest_data[4]
-        self.macd = latest_data[5]
-        self.signal_line = latest_data[6]
-        self.atr = latest_data[7]
-        self.plus_di = latest_data[8]
-        self.minus_di = latest_data[9]
-        self.adx = latest_data[10]
+        # latest_data = Database(self.crypto).retrieveData(select_crypto_data_query)[0]
+
+        sma, macd, adx = Indicators(self.crypto).runIndicators()
+
+        self.sma_fast = sma[0]
+        self.sma_slow = sma[1]
+        self.ema_fast = macd[0]
+        self.ema_slow = macd[1]
+        self.macd = macd[2]
+        self.signal_line = macd[3]
+        self.adx = adx[0]
+        self.atr = adx[1]
+        self.plus_di = adx[2]
+        self.minus_di = adx[3]
 
 
     def tradeExecution(self):
@@ -64,6 +69,13 @@ class Momentum:
 
         wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
         wallet = {entry['asset']: entry for entry in wallet_info}
+
+
+        # Emergency stop
+        if float(wallet["PHP"]['free']) < 150.00 and float(wallet[self.crypto]['free']) < 0.01 and self.signal == 1:
+            self.logger.info("Emergency Stop Triggered: Low Funds")
+            sys.exit(0)
+
 
         # No Position
         if float(wallet[self.crypto]['free']) < 0.01 and self.signal == 1:
