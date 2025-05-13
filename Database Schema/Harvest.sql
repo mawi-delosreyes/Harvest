@@ -7,6 +7,12 @@ CREATE TABLE User (
 	PRIMARY KEY (user_id)
 );
 
+CREATE TABLE Daily_Balance (
+	timestamp DATETIME,
+	user_id INTEGER(11) NOT NULL,
+	balance DECIMAL(16,6)
+);
+
 CREATE TABLE Cryptocurrency(
 	crypto_id INTEGER(11) NOT NULL AUTO_INCREMENT,
 	crypto_name VARCHAR(50) NOT NULL,

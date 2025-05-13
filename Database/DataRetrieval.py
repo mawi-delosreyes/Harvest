@@ -3,7 +3,7 @@ from datetime import datetime
 from .Database import Database
 from Logging.Logger import Logger
 from Indicators.Indicators import Indicators
-from Coins.GenerateSignature import generateReadSignature
+from Coins.GenerateSignature import generateTradeSignature
 from Coins.constants import host
 
 class DataRetrieval:
@@ -47,7 +47,6 @@ class DataRetrieval:
 
 
     def getPrice(self):
-
         prices_url = host + "openapi/quote/v1/klines"
 
         current_milliseconds = int(datetime.now().timestamp() * 1000)
@@ -73,7 +72,20 @@ class DataRetrieval:
 
         return open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades
     
-    
+
+    def getCryptoPrice(self):
+        prices_url = host + "openapi/quote/v1/ticker/price"
+        
+        params = {
+            "symbol": self.cryptoPair
+        }
+
+        response = requests.get(prices_url, params=params)
+        xrp_price = response.json()['price']
+
+        return xrp_price
+
+
     def getWalletBalance(self):
         account_url = "openapi/v1/account"
         current_milliseconds = int(datetime.now().timestamp() * 1000)
@@ -82,15 +94,29 @@ class DataRetrieval:
             "timestamp": current_milliseconds
         }
 
-        account_url, ro_api_key, params['signature'] = generateReadSignature(account_url, params)
+        account_url, api_key, params['signature'] = generateTradeSignature(account_url, params)
         headers = {
-            'X-COINS-APIKEY': ro_api_key
+            'X-COINS-APIKEY': api_key,
         }
 
         response = requests.get(account_url, params=params, headers=headers)
         data = response.json()
+        wallet_balance = {entry['asset']: entry for entry in data['balances']}
+        return wallet_balance
+    
+
+    def saveWalletBalance(self):
+        wallet_balance = self.getWalletBalance()
+        crypto_price = self.getCryptoPrice()
+
+
+        total_php = float(wallet_balance["PHP"]['free'])
+        total_php += float(wallet_balance[self.crypto]['free']) * float(crypto_price)
+
+        balance_columns = "(timestamp, balance)"
+        balance_value = (datetime.now(), total_php)
         
-        return data['balances']
+        Database(self.crypto).saveDB(self.crypto, "Daily_Balance", balance_columns, balance_value)
 
 
     def saveData(self):
