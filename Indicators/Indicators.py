@@ -11,8 +11,8 @@ class Indicators:
     def __init__(self, crypto):
         self.logger = Logger(crypto)
         self.crypto = crypto
-        self.sma_fast_period = 10
-        self.sma_slow_period = 30
+        self.sma_fast_period = 9
+        self.sma_slow_period = 21
         self.macd_fast_period = 12
         self.macd_slow_period = 26
         self.macd_signal_line_period = 9

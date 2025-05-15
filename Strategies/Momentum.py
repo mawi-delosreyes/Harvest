@@ -70,6 +70,7 @@ class Momentum:
         wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
         wallet = {entry['asset']: entry for entry in wallet_info}
 
+        self.logger.info("Trade Signal: " + self.signal)
 
         # Emergency stop
         if float(wallet["PHP"]['free']) < 150.00 and float(wallet[self.crypto]['free']) < 0.01 and self.signal == 1:
@@ -153,13 +154,3 @@ class Momentum:
                 update_statement = "take_profit=0, stop_loss=0"
                 Database(self.crypto).updateDB('Cryptocurrency', update_statement)
                 self.logger.info("Updated Take Profit: 0, Stop Loss: 0")
-
-
-
-if __name__ == '__main__':
-    crypto = "XRP"
-
-    strategy = Momentum(crypto)
-    strategy.retrieveData()
-    strategy.checkSignals()
-    strategy.tradeExecution()

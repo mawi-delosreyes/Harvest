@@ -119,7 +119,7 @@ class DataRetrieval:
         Database(self.crypto).saveDB(self.crypto, "Daily_Balance", balance_columns, balance_value)
 
 
-    def saveData(self):
+    def saveCryptoData(self):
         open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades = self.getPrice()
         crypto_columns = "(open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)"
         crypto_data_value = (open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)
@@ -153,19 +153,3 @@ class DataRetrieval:
         except Exception as e:
             self.logger.error(e)
             
-
-
-if __name__ == "__main__":
-    crypto = "XRP"
-    cryptoPair = "XRPPHP"
-    retrieval = DataRetrieval(crypto, cryptoPair)
-
-    select_last_saved_data_query = "SELECT close_timestamp FROM %s ORDER BY id DESC LIMIT 1" % (crypto)
-    last_timestamp = Database(crypto).retrieveData(select_last_saved_data_query)
-
-    if len(last_timestamp) == 0:
-        retrieval.saveData()
-    elif last_timestamp[0][0].hour == datetime.now().hour and last_timestamp[0][0].minute == datetime.now().minute:
-        retrieval.saveData()
-    else:
-        retrieval.saveDelayedData(last_timestamp[0][0])
