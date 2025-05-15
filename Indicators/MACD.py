@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 class MACD:
-    def __init__(self, close_data, fast, slow, signalPeriod, prev_fast_ema, prev_slow_ema, prev_signal):
+    def __init__(self, close_data, fast, slow, signalPeriod):
         self.close_data = close_data
         self.fast = fast
         self.slow = slow

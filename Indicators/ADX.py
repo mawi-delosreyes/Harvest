@@ -24,7 +24,7 @@ class ATR:
 
 
 class ADX:
-    def __init__(self, high, low, close, period, prev_atr, prev_plus_dm14, prev_minus_dm14, prev_adx):
+    def __init__(self, high, low, close, period):
         self.high = high
         self.low = low
         self.close = close

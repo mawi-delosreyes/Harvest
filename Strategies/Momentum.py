@@ -68,18 +68,17 @@ class Momentum:
         current_milliseconds = int(datetime.now().timestamp() * 1000)
 
         wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
-        wallet = {entry['asset']: entry for entry in wallet_info}
 
-        self.logger.info("Trade Signal: " + self.signal)
+        self.logger.info("Trade Signal: " + str(self.signal))
 
         # Emergency stop
-        if float(wallet["PHP"]['free']) < 150.00 and float(wallet[self.crypto]['free']) < 0.01 and self.signal == 1:
+        if float(wallet_info["PHP"]['free']) < 150.00 and float(wallet_info[self.crypto]['free']) < 0.01 and self.signal == 1:
             self.logger.info("Emergency Stop Triggered: Low Funds")
             sys.exit(0)
 
 
         # No Position
-        if float(wallet[self.crypto]['free']) < 0.01 and self.signal == 1:
+        if float(wallet_info[self.crypto]['free']) < 0.01 and self.signal == 1:
 
             crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice()[4])
             # if self.signal == 1 or self.signal == -1:
@@ -106,7 +105,7 @@ class Momentum:
                     "symbol": self.crypto + "PHP",
                     "side": purchase_signal,
                     "type": "MARKET",
-                    "quoteOrderQty": wallet['PHP']['free'],
+                    "quoteOrderQty": wallet_info['PHP']['free'],
                     "timestamp": current_milliseconds,
                 }
 
@@ -116,8 +115,12 @@ class Momentum:
                     'X-COINS-APIKEY': api_key
                 }
                 
-                response = requests.post(order_url, params=params, headers=headers)
-                self.logger.info("Order Response: {}".format(response.json()))
+                try:
+                    response = requests.post(order_url, params=params, headers=headers)
+                    self.logger.info("Order Response: {}".format(response.json()))
+                except Exception as e:
+                    self.logger.error("Error executing order: {}".format(e))
+                    sys.exit(0)
 
                 update_statement = "take_profit={}, stop_loss={}".format(take_profit, stop_loss)
                 Database(self.crypto).updateDB('Cryptocurrency', update_statement)
@@ -131,14 +134,14 @@ class Momentum:
             stop_loss = profits[0][1]
             crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice()[4])
 
-            if (crypto_price >= take_profit or crypto_price <= stop_loss) or ((self.signal == 0 or self.signal == -1) and float(wallet[self.crypto]['free']) > 0.01):
+            if (crypto_price >= take_profit or crypto_price <= stop_loss) or ((self.signal == 0 or self.signal == -1) and float(wallet_info[self.crypto]['free']) > 0.01):
                 self.logger.info("Sell Signal Detected")
 
                 params = {
                     "symbol": self.crypto + "PHP",
                     "side": "SELL",
                     "type": "MARKET",
-                    "quantity": int(float(wallet[self.crypto]['free']) * 100) / 100,
+                    "quantity": int(float(wallet_info[self.crypto]['free']) * 100) / 100,
                     "timestamp": current_milliseconds,
                 }
 
@@ -148,8 +151,12 @@ class Momentum:
                     'X-COINS-APIKEY': api_key
                 }
                 
-                response = requests.post(order_url, params=params, headers=headers)
-                self.logger.info("Order Response: {}".format(response.json()))
+                try:
+                    response = requests.post(order_url, params=params, headers=headers)
+                    self.logger.info("Order Response: {}".format(response.json()))
+                except Exception as e:
+                    self.logger.error("Error executing order: {}".format(e))
+                    sys.exit(0)
 
                 update_statement = "take_profit=0, stop_loss=0"
                 Database(self.crypto).updateDB('Cryptocurrency', update_statement)
