@@ -35,6 +35,11 @@ class Harvest:
     
     def actions(self):
         self.saveData()
+
+        if datetime.now().hour == 0 and datetime.now().minute == 0:
+           retrieval = DataRetrieval(self.crypto, self.cryptoPair)
+           retrieval.saveWalletBalance()
+
         self.executeStrategy()
 
 

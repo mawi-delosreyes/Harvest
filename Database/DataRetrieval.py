@@ -113,8 +113,8 @@ class DataRetrieval:
         total_php = float(wallet_balance["PHP"]['free'])
         total_php += float(wallet_balance[self.crypto]['free']) * float(crypto_price)
 
-        balance_columns = "(timestamp, balance)"
-        balance_value = (datetime.now(), total_php)
+        balance_columns = "(timestamp, user_id, balance)"
+        balance_value = (datetime.now(), '1', total_php)
         
         Database(self.crypto).saveDB(self.crypto, "Daily_Balance", balance_columns, balance_value)
 
