@@ -17,14 +17,15 @@ class DataRetrieval:
     def saveDelayedData(self, last_timestamp):
         
         prices_url = host + "openapi/quote/v1/klines"
+        time_url = host + "openapi/v1/time"
 
         start_milliseconds = int(last_timestamp.timestamp() * 1000)
-        current_milliseconds = int(datetime.now().timestamp() * 1000) - (5 * 60 * 1000)
+        server_timestamp = requests.get(time_url).json()["serverTime"] - (5 * 60 * 1000)
         params = {
             "symbol": self.cryptoPair,
             "interval": self.interval,
             "startTime": start_milliseconds,
-            "endTime": current_milliseconds
+            "endTime": server_timestamp
         }
 
         response = requests.get(prices_url, params=params)
@@ -48,13 +49,14 @@ class DataRetrieval:
 
     def getPrice(self):
         prices_url = host + "openapi/quote/v1/klines"
+        time_url = host + "openapi/v1/time"
 
-        current_milliseconds = int(datetime.now().timestamp() * 1000)
+        server_timestamp = requests.get(time_url).json()["serverTime"]
         params = {
             "symbol": self.cryptoPair,
             "interval": self.interval,
             "limit": 2,
-            "startTime": current_milliseconds
+            "startTime": server_timestamp
         }
 
         response = requests.get(prices_url, params=params)
@@ -84,14 +86,39 @@ class DataRetrieval:
         xrp_price = response.json()['price']
 
         return xrp_price
+    
 
+    def getTradeFees(self):
+        tradeFee_url = "openapi/v1/asset/tradeFee"
+        time_url = host + "openapi/v1/time"
+
+        server_timestamp = requests.get(time_url).json()["serverTime"]
+        params = {
+            "symbol": self.cryptoPair.upper(),
+            "timestamp": server_timestamp,
+            "recvWindow": 10000,
+        }
+
+        tradeFee_url, api_key, params['signature'] = generateTradeSignature(tradeFee_url, params)
+        headers = {
+            'X-COINS-APIKEY': api_key,
+        }
+
+        response = requests.get(tradeFee_url, params=params, headers=headers)
+        data = response.json()
+        crypto_balance = {entry['symbol']: entry for entry in data}
+        return crypto_balance
+    
 
     def getWalletBalance(self):
         account_url = "openapi/v1/account"
-        current_milliseconds = int(datetime.now().timestamp() * 1000)
+        time_url = host + "openapi/v1/time"
+
+        server_timestamp = requests.get(time_url).json()["serverTime"]
 
         params = {
-            "timestamp": current_milliseconds
+            "timestamp": server_timestamp,
+            'recvWindow': 5000,
         }
 
         account_url, api_key, params['signature'] = generateTradeSignature(account_url, params)

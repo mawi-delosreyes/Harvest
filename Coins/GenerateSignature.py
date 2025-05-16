@@ -1,6 +1,6 @@
 import hmac
 import hashlib
-from Coins.constants import host, api_key, secret_key, ro_api_key, ro_secret_key
+from Coins.constants import host, api_key, secret_key, ro_api_key, ro_secret_key, api_key_stg, secret_key_stg
 
 def generateTradeSignature(url, params):
     url = host + url
@@ -15,3 +15,10 @@ def generateReadSignature(url, params):
     query_string = '&'.join([f"{key}={value}" for key, value in params.items()])
     signature = hmac.new(ro_secret_key.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256).hexdigest()
     return url, ro_api_key, signature
+
+def generateTradeSignatureSTG(url, params):
+    url = host + url
+
+    query_string = '&'.join([f"{key}={value}" for key, value in params.items()])
+    signature = hmac.new(secret_key_stg.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256).hexdigest()
+    return url, api_key_stg, signature

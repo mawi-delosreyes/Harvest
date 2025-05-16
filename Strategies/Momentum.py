@@ -7,7 +7,7 @@ from Indicators.Signals import Signals
 from Indicators.Indicators import Indicators
 from Logging.Logger import Logger
 from Coins.GenerateSignature import generateTradeSignature
-from datetime import datetime
+from Coins.constants import host
 
 class Momentum:
     def __init__(self, crypto):
@@ -34,7 +34,9 @@ class Momentum:
             self.logger.info(f"SMA Signal: {indicator_signals.SMA()}")
             self.logger.info(f"MACD Signal: {indicator_signals.MACD()}")
             self.logger.info(f"ADX Signal: {indicator_signals.ADX()}")
-            self.signal = indicator_signals.SMA() * indicator_signals.MACD() * indicator_signals.ADX()
+            self.signal = -1
+            if indicator_signals.SMA() == 1 and indicator_signals.MACD() == 1 and indicator_signals.ADX() == 1:
+                self.signal = 1
 
 
     def retrieveData(self):
@@ -68,9 +70,11 @@ class Momentum:
 
         purchase_signal = None
         order_url = "openapi/v1/order"
-        current_milliseconds = int(datetime.now().timestamp() * 1000)
+        time_url = host + "openapi/v1/time"
 
+        server_timestamp = requests.get(time_url).json()["serverTime"]
         wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
+        trade_fee = DataRetrieval(self.crypto, self.crypto+'PHP').getTradeFees()
 
         self.logger.info("Trade Signal: " + str(self.signal))
 
@@ -101,7 +105,7 @@ class Momentum:
             if self.signal == 1:
                 self.logger.info("Buy Signal Detected")
                 purchase_signal = "buy"
-                take_profit = Decimal(crypto_price) + (2 * self.atr)
+                take_profit = Decimal(crypto_price) + (Decimal(crypto_price) * Decimal(trade_fee[self.crypto+"PHP"]['takerCommission'])) + (2 * self.atr)
                 stop_loss = Decimal(crypto_price) - self.atr
 
                 params = {
@@ -109,7 +113,7 @@ class Momentum:
                     "side": purchase_signal,
                     "type": "MARKET",
                     "quoteOrderQty": wallet_info['PHP']['free'],
-                    "timestamp": current_milliseconds,
+                    "timestamp": server_timestamp,
                 }
 
                 order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
@@ -144,7 +148,7 @@ class Momentum:
                     "side": "SELL",
                     "type": "MARKET",
                     "quantity": int(float(wallet_info[self.crypto]['free']) * 100) / 100,
-                    "timestamp": current_milliseconds,
+                    "timestamp": server_timestamp,
                 }
 
                 order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)

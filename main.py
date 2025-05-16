@@ -50,7 +50,7 @@ class Harvest:
 
 if __name__ == "__main__":
 
-    xrp_trading = threading.Thread(target=Harvest("XRP", "XRPUSDT").actions)
+    xrp_trading = threading.Thread(target=Harvest("XRP", "XRPPHP").actions)
     xrp_trading.start()
     xrp_trading.join()
 
