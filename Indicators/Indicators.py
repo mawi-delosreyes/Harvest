@@ -19,7 +19,7 @@ class Indicators:
         self.adx_period = 14
         self.rows = max(self.sma_fast_period, self.sma_slow_period, 
                         self.macd_fast_period, self.macd_slow_period, self.macd_signal_line_period,
-                        self.adx_period)
+                        self.adx_period) + self.macd_signal_line_period
         self.latest_crypto_data = None
 
 
@@ -58,9 +58,9 @@ class Indicators:
         close = list(close)
         volume = list(volume)
 
-        sma = SMA(close, self.sma_fast_period, self.sma_slow_period)
-        macd = MACD(close, self.macd_fast_period, self.macd_slow_period, self.macd_signal_line_period)
-        adx = ADX(high, low, close, self.adx_period)
+        sma = SMA(self.crypto, close, self.sma_fast_period, self.sma_slow_period)
+        macd = MACD(self.crypto, close, self.macd_fast_period, self.macd_slow_period, self.macd_signal_line_period)
+        adx = ADX(self.crypto, high, low, close, self.adx_period)
 
         try:
             sma_thread = threading.Thread(target=sma.computeSMA)

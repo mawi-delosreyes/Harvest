@@ -1,38 +1,59 @@
+import sys
 from decimal import Decimal
+from Logging.Logger import Logger
 
 class MACD:
-    def __init__(self, close_data, fast, slow, signalPeriod):
+    def __init__(self, crypto, close_data, fast, slow, signalPeriod):
         self.close_data = close_data
         self.fast = fast
         self.slow = slow
         self.signalPeriod = signalPeriod  
-        self.fastSmoothingFactor = Decimal(str(2 / (self.fast + 1)))
-        self.slowSmoothingFactor = Decimal(str(2 / (self.slow + 1)))
-        self.signalSmoothingFactor = Decimal(str(2 / (self.signalPeriod + 1)))
+        self.macd_values = []
         self.result = None
-
-    def computeEMA(self):
-        if len(self.close_data) < self.slow:
-            print("Not enough data to compute fast and slow EMA")
-            return None, None
-
-        fast_ema = sum(self.close_data[-self.fast:]) / self.fast
-        slow_ema = sum(self.close_data[-self.slow:]) / self.slow
-
-        return fast_ema, slow_ema
+        self.logger = Logger(crypto)
+        self.crypto = crypto
 
 
-    def computeSignalLine(self, macd):
-        signal_line = macd
-        return signal_line
+    def computeWilderEMA(self, data, period):
+        if len(data) < period:
+            self.logger.info("Not enough data to compute EMA")
+            sys.exit(0)
+
+        ema_values = []
+        sma = sum(Decimal(x) for x in data[:period]) / Decimal(period)
+        ema_values.append(sma)
+
+        for price in data[period:]:
+            price = Decimal(price)
+            ema_prev = ema_values[-1]
+            ema = (ema_prev * (Decimal(period) - Decimal('1')) + price) / Decimal(period)
+            ema_values.append(ema)
+        return ema_values
+
+
+    def computeSignalLine(self):
+        if len(self.macd_values) < self.signalPeriod:
+            self.logger.info("Not enough data to compute signal line")
+            sys.exit(0)
+        return self.computeWilderEMA(self.macd_values, self.signalPeriod)
 
 
     def computeMACD(self):
-        fast_ema, slow_ema = self.computeEMA()
-        if fast_ema is None or slow_ema is None:
-            return None, None, None, None
+        if len(self.close_data) < self.slow:
+            self.logger.error("Not enough data to compute MACD and signal line.")
+            sys.exit(0)
 
-        macd = fast_ema - slow_ema
-        signal_line = self.computeSignalLine(macd)
+        fast_ema = self.computeWilderEMA(self.close_data, self.fast)
+        slow_ema = self.computeWilderEMA(self.close_data, self.slow)
 
-        self.result = (fast_ema, slow_ema, macd, signal_line)
+        min_len = min(len(fast_ema), len(slow_ema))
+        for i in range(min_len):
+            macd = fast_ema[-min_len + i] - slow_ema[-min_len + i]
+            self.macd_values.append(macd)
+
+        if len(self.macd_values) < self.signalPeriod:
+            self.logger.error("Not enough MACD values to compute signal line.")
+            sys.exit(0)
+
+        signal_line = self.computeSignalLine()
+        self.result = (fast_ema[-1], slow_ema[-1], self.macd_values[-1], signal_line[-1])

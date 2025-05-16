@@ -3,12 +3,13 @@ from Database.DataRetrieval import DataRetrieval
 from Database.Database import Database
 from Strategies.Momentum import Momentum
 from datetime import datetime
+from Logging.Logger import Logger
 
 class Harvest:
     def __init__(self, crypto, cryptoPair):
         self.crypto = crypto
         self.cryptoPair = cryptoPair
-
+        self.logger = Logger(crypto)
         
 
     def saveData(self):
@@ -27,11 +28,13 @@ class Harvest:
 
     
     def executeStrategy(self):
-        strategy = Momentum(self.crypto)
-        strategy.retrieveData()
-        strategy.checkSignals()
-        strategy.tradeExecution()
-
+        try:
+            strategy = Momentum(self.crypto)
+            strategy.retrieveData()
+            strategy.checkSignals()
+            strategy.tradeExecution()
+        except Exception as e:
+            self.logger.error(f"Error in strategy execution: {e}")
     
     def actions(self):
         self.saveData()

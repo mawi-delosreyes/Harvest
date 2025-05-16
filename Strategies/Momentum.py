@@ -31,6 +31,9 @@ class Momentum:
             indicator_signals = Signals(self.sma_fast, self.sma_slow, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
                                         self.plus_di, self.minus_di, self.adx)
             
+            self.logger.info(f"SMA Signal: {indicator_signals.SMA()}")
+            self.logger.info(f"MACD Signal: {indicator_signals.MACD()}")
+            self.logger.info(f"ADX Signal: {indicator_signals.ADX()}")
             self.signal = indicator_signals.SMA() * indicator_signals.MACD() * indicator_signals.ADX()
 
 
@@ -133,8 +136,7 @@ class Momentum:
             take_profit = profits[0][0]
             stop_loss = profits[0][1]
             crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice()[4])
-
-            if (crypto_price >= take_profit or crypto_price <= stop_loss) or ((self.signal == 0 or self.signal == -1) and float(wallet_info[self.crypto]['free']) > 0.01):
+            if ((crypto_price >= take_profit or crypto_price <= stop_loss) or (self.signal == 0 or self.signal == -1)) and float(wallet_info[self.crypto]['free']) > 0.01:    
                 self.logger.info("Sell Signal Detected")
 
                 params = {
