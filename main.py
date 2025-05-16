@@ -4,6 +4,7 @@ from Database.Database import Database
 from Strategies.Momentum import Momentum
 from datetime import datetime
 from Logging.Logger import Logger
+import time
 
 class Harvest:
     def __init__(self, crypto, cryptoPair):
@@ -43,6 +44,7 @@ class Harvest:
            retrieval = DataRetrieval(self.crypto, self.cryptoPair)
            retrieval.saveWalletBalance()
 
+        time.sleep(5)
         self.executeStrategy()
 
 
@@ -51,6 +53,13 @@ class Harvest:
 if __name__ == "__main__":
 
     xrp_trading = threading.Thread(target=Harvest("XRP", "XRPPHP").actions)
-    xrp_trading.start()
-    xrp_trading.join()
+    eth_trading = threading.Thread(target=Harvest("ETH", "ETHPHP").actions)
+    sol_trading = threading.Thread(target=Harvest("SOL", "SOLPHP").actions)
 
+    xrp_trading.start()
+    eth_trading.start()
+    sol_trading.start()
+
+    xrp_trading.join()
+    eth_trading.join()
+    sol_trading.join()

@@ -87,7 +87,7 @@ class Momentum:
         # No Position
         if float(wallet_info[self.crypto]['free']) < 0.01 and self.signal == 1:
 
-            crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice()[4])
+            crypto_price = Decimal(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice()[4])
             # if self.signal == 1 or self.signal == -1:
             #     if self.signal == 1:
             #         purchase_signal = "buy"
@@ -105,7 +105,8 @@ class Momentum:
             if self.signal == 1:
                 self.logger.info("Buy Signal Detected")
                 purchase_signal = "buy"
-                take_profit = Decimal(crypto_price) + (Decimal(crypto_price) * Decimal(trade_fee[self.crypto+"PHP"]['takerCommission'])) + (2 * self.atr)
+                estimated_crypto_amount = Decimal(wallet_info['PHP']['free']) / crypto_price
+                take_profit = crypto_price + ((estimated_crypto_amount * Decimal(trade_fee[self.crypto+"PHP"]['takerCommission'])) * crypto_price) + (self.atr * 2)
                 stop_loss = Decimal(crypto_price) - self.atr
 
                 params = {
