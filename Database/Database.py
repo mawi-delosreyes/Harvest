@@ -69,7 +69,7 @@ class Database:
         cur.execute(update_query)
         self.conn.commit()
 
-        self.logger.info(" Update to Database : " + self.crypto + " "+ str(values))
+        self.logger.info("Update to Database : " + self.crypto + " "+ str(values))
 
 
     def closeDB(self):

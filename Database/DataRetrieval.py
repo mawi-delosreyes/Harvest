@@ -2,7 +2,6 @@ import requests
 from datetime import datetime
 from .Database import Database
 from Logging.Logger import Logger
-from Indicators.Indicators import Indicators
 from Coins.GenerateSignature import generateTradeSignature
 from Coins.constants import host
 
@@ -47,9 +46,12 @@ class DataRetrieval:
             Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
 
 
-    def getPrice(self, server_timestamp):
+    def getPrice(self, interval=None):
         prices_url = host + "openapi/quote/v1/klines"
+        time_url = host + "openapi/v1/time"
+        server_timestamp = requests.get(time_url).json()["serverTime"]
 
+        if interval is not None: self.interval = interval
         params = {
             "symbol": self.cryptoPair,
             "interval": self.interval,
@@ -81,9 +83,9 @@ class DataRetrieval:
         }
 
         response = requests.get(prices_url, params=params)
-        xrp_price = response.json()['price']
+        price = response.json()['price']
 
-        return xrp_price
+        return price
     
 
     def getTradeFees(self, server_timestamp):
@@ -140,36 +142,12 @@ class DataRetrieval:
 
 
     def saveCryptoData(self):
-        open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades = self.getPrice()
+        open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades = self.getPrice(None)
         crypto_columns = "(open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)"
         crypto_data_value = (open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)
         
         try:
             Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
-            # last_data_index = Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
-
-            # indicators = Indicators(self.crypto)
-            # sma, macd, adx = indicators.runIndicators()
-            
-            # if all(value is not None for value in sma):
-            #     sma_table = self.crypto + "_SMA"
-            #     sma_columns = "(id, sma_fast, sma_slow)"
-            #     sma_data_values = (last_data_index, sma[0], sma[1])
-            #     Database(self.crypto).saveDB("SMA", sma_table, sma_columns, sma_data_values)
-
-            # if all(value is not None for value in macd):
-            #     macd_table = self.crypto + "_MACD"
-            #     macd_columns = "(id, ema_fast, ema_slow, macd, signal_line)"
-            #     macd_data_values = (last_data_index, macd[0], macd[1], macd[2], macd[3])
-            #     Database(self.crypto).saveDB("MACD", macd_table, macd_columns, macd_data_values)
-
-            # if all(value is not None for value in adx):
-            #     adx_table = self.crypto + "_ADX"
-            #     adx_columns = "(id, atr, plus_di, minus_di, adx)"
-            #     adx_data_values = (last_data_index, adx[1], adx[2], adx[3], adx[0])
-            #     Database(self.crypto).saveDB("ADX", adx_table, adx_columns, adx_data_values)
-            
-        
         except Exception as e:
             self.logger.error(e)
             
