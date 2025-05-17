@@ -47,11 +47,9 @@ class DataRetrieval:
             Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
 
 
-    def getPrice(self):
+    def getPrice(self, server_timestamp):
         prices_url = host + "openapi/quote/v1/klines"
-        time_url = host + "openapi/v1/time"
 
-        server_timestamp = requests.get(time_url).json()["serverTime"]
         params = {
             "symbol": self.cryptoPair,
             "interval": self.interval,
@@ -88,11 +86,9 @@ class DataRetrieval:
         return xrp_price
     
 
-    def getTradeFees(self):
+    def getTradeFees(self, server_timestamp):
         tradeFee_url = "openapi/v1/asset/tradeFee"
-        time_url = host + "openapi/v1/time"
 
-        server_timestamp = requests.get(time_url).json()["serverTime"]
         params = {
             "symbol": self.cryptoPair.upper(),
             "timestamp": server_timestamp,
@@ -110,11 +106,8 @@ class DataRetrieval:
         return crypto_balance
     
 
-    def getWalletBalance(self):
+    def getWalletBalance(self, server_timestamp):
         account_url = "openapi/v1/account"
-        time_url = host + "openapi/v1/time"
-
-        server_timestamp = requests.get(time_url).json()["serverTime"]
 
         params = {
             "timestamp": server_timestamp,

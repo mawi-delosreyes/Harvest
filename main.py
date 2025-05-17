@@ -52,14 +52,14 @@ class Harvest:
 
 if __name__ == "__main__":
 
-    xrp_trading = threading.Thread(target=Harvest("XRP", "XRPPHP").actions)
-    eth_trading = threading.Thread(target=Harvest("ETH", "ETHPHP").actions)
     sol_trading = threading.Thread(target=Harvest("SOL", "SOLPHP").actions)
+    eth_trading = threading.Thread(target=Harvest("ETH", "ETHPHP").actions)
+    xrp_trading = threading.Thread(target=Harvest("XRP", "XRPPHP").actions)
 
-    xrp_trading.start()
-    eth_trading.start()
     sol_trading.start()
+    eth_trading.start()
+    xrp_trading.start()
 
-    xrp_trading.join()
-    eth_trading.join()
     sol_trading.join()
+    eth_trading.join()
+    xrp_trading.join()

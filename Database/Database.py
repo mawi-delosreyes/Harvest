@@ -57,13 +57,13 @@ class Database:
         return cur.lastrowid
     
 
-    def updateDB(self, table, values):
+    def updateDB(self, table, values, condition):
         if self.conn is None or not self.conn.is_connected():
             self.connectDB()
         if self.conn is None:
             raise ConnectionError("Failed to connect to database.")
 
-        update_query = f"""Update {table} SET {values} WHERE crypto_name='{self.crypto}'"""
+        update_query = f"""Update {table} SET {values} {condition}"""
 
         cur = self.conn.cursor()
         cur.execute(update_query)

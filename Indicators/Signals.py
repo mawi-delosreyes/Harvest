@@ -1,11 +1,12 @@
 class Signals:
-    def __init__(self, sma_fast, sma_slow, ema_fast, ema_slow, macd, signal_line, plus_di, minus_di, adx):
+    def __init__(self, sma_fast, sma_slow, plus_di, minus_di, adx):
+    # def __init__(self, sma_fast, sma_slow, ema_fast, ema_slow, macd, signal_line, plus_di, minus_di, adx):
         self.sma_fast = sma_fast
         self.sma_slow = sma_slow
-        self.ema_fast = ema_fast
-        self.ema_slow = ema_slow
-        self.macd = macd
-        self.signal_line = signal_line
+        # self.ema_fast = ema_fast
+        # self.ema_slow = ema_slow
+        # self.macd = macd
+        # self.signal_line = signal_line
         self.plus_di = plus_di
         self.minus_di = minus_di
         self.adx = adx

@@ -11,15 +11,16 @@ class Indicators:
     def __init__(self, crypto):
         self.logger = Logger(crypto)
         self.crypto = crypto
-        self.sma_fast_period = 9
-        self.sma_slow_period = 21
-        self.macd_fast_period = 12
-        self.macd_slow_period = 26
-        self.macd_signal_line_period = 9
+        self.sma_fast_period = 7
+        self.sma_slow_period = 25
+        # self.macd_fast_period = 12
+        # self.macd_slow_period = 26
+        # self.macd_signal_line_period = 9
         self.adx_period = 14
-        self.rows = max(self.sma_fast_period, self.sma_slow_period, 
-                        self.macd_fast_period, self.macd_slow_period, self.macd_signal_line_period,
-                        self.adx_period) + self.macd_signal_line_period
+        # self.rows = max(self.sma_fast_period, self.sma_slow_period, 
+        #                 self.macd_fast_period, self.macd_slow_period, self.macd_signal_line_period,
+        #                 self.adx_period) + self.macd_signal_line_period
+        self.rows = max(self.sma_fast_period, self.sma_slow_period, self.adx_period) + self.sma_slow_period
         self.latest_crypto_data = None
 
 
@@ -37,8 +38,10 @@ class Indicators:
 
     def runIndicators(self):
 
-        min_data =max(self.sma_fast_period, self.sma_slow_period, self.macd_fast_period, self.macd_slow_period, 
-                      self.macd_signal_line_period, self.adx_period)
+        # min_data =max(self.sma_fast_period, self.sma_slow_period, self.macd_fast_period, self.macd_slow_period, 
+                    #   self.macd_signal_line_period, self.adx_period)
+
+        min_data =max(self.sma_fast_period, self.sma_slow_period, self.adx_period)
 
         try:
             self.latest_crypto_data = self.retrieveDatabaseData()
@@ -59,23 +62,24 @@ class Indicators:
         volume = list(volume)
 
         sma = SMA(self.crypto, close, self.sma_fast_period, self.sma_slow_period)
-        macd = MACD(self.crypto, close, self.macd_fast_period, self.macd_slow_period, self.macd_signal_line_period)
+        # macd = MACD(self.crypto, close, self.macd_fast_period, self.macd_slow_period, self.macd_signal_line_period)
         adx = ADX(self.crypto, high, low, close, self.adx_period)
 
         try:
             sma_thread = threading.Thread(target=sma.computeSMA)
-            macd_thread = threading.Thread(target=macd.computeMACD)
+            # macd_thread = threading.Thread(target=macd.computeMACD)
             adx_thread = threading.Thread(target=adx.computeADX)
 
             sma_thread.start()
-            macd_thread.start()
+            # macd_thread.start()
             adx_thread.start()
 
             sma_thread.join()
-            macd_thread.join()
+            # macd_thread.join()
             adx_thread.join()
 
-            return sma.result, macd.result, adx.result
-        
+            # return sma.result, macd.result, adx.result
+            return sma.result, adx.result
+
         except Exception as e:
             self.logger.error(e)

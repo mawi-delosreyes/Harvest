@@ -14,28 +14,39 @@ class Momentum:
         self.crypto = crypto
         self.sma_fast = None
         self.sma_slow = None
-        self.ema_fast = None
-        self.ema_slow = None
-        self.macd = None
-        self.signal_line = None
+        # self.ema_fast = None
+        # self.ema_slow = None
+        # self.macd = None
+        # self.signal_line = None
         self.plus_di = None
         self.minus_di = None
         self.adx = None
         self.logger = Logger(crypto)
 
 
-    def checkSignals(self):
-        if all(value is not None for value in [self.sma_fast, self.sma_slow, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
-                                        self.plus_di, self.minus_di, self.adx]):
+    # def checkSignals(self):
+    #     if all(value is not None for value in [self.sma_fast, self.sma_slow, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
+    #                                     self.plus_di, self.minus_di, self.adx]):
 
-            indicator_signals = Signals(self.sma_fast, self.sma_slow, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
-                                        self.plus_di, self.minus_di, self.adx)
+    #         indicator_signals = Signals(self.sma_fast, self.sma_slow, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
+    #                                     self.plus_di, self.minus_di, self.adx)
+            
+    #         self.logger.info(f"SMA Signal: {indicator_signals.SMA()}")
+    #         self.logger.info(f"MACD Signal: {indicator_signals.MACD()}")
+    #         self.logger.info(f"ADX Signal: {indicator_signals.ADX()}")
+    #         self.signal = -1
+    #         if indicator_signals.SMA() == 1 and indicator_signals.MACD() == 1 and indicator_signals.ADX() == 1:
+    #             self.signal = 1
+
+    def checkSignals(self):
+        if all(value is not None for value in [self.sma_fast, self.sma_slow, self.plus_di, self.minus_di, self.adx]):
+
+            indicator_signals = Signals(self.sma_fast, self.sma_slow, self.plus_di, self.minus_di, self.adx)
             
             self.logger.info(f"SMA Signal: {indicator_signals.SMA()}")
-            self.logger.info(f"MACD Signal: {indicator_signals.MACD()}")
             self.logger.info(f"ADX Signal: {indicator_signals.ADX()}")
             self.signal = -1
-            if indicator_signals.SMA() == 1 and indicator_signals.MACD() == 1 and indicator_signals.ADX() == 1:
+            if indicator_signals.SMA() == 1 and indicator_signals.ADX() == 1:
                 self.signal = 1
 
 
@@ -52,14 +63,15 @@ class Momentum:
 
         # latest_data = Database(self.crypto).retrieveData(select_crypto_data_query)[0]
 
-        sma, macd, adx = Indicators(self.crypto).runIndicators()
+        # sma, macd, adx = Indicators(self.crypto).runIndicators()
+        sma, adx = Indicators(self.crypto).runIndicators()
 
         self.sma_fast = sma[0]
         self.sma_slow = sma[1]
-        self.ema_fast = macd[0]
-        self.ema_slow = macd[1]
-        self.macd = macd[2]
-        self.signal_line = macd[3]
+        # self.ema_fast = macd[0]
+        # self.ema_slow = macd[1]
+        # self.macd = macd[2]
+        # self.signal_line = macd[3]
         self.adx = adx[0]
         self.atr = adx[1]
         self.plus_di = adx[2]
@@ -72,22 +84,24 @@ class Momentum:
         order_url = "openapi/v1/order"
         time_url = host + "openapi/v1/time"
 
+        check_hold_query = "SELECT hold FROM User WHERE user_id = 1"
+        hold = Database(self.crypto).retrieveData(check_hold_query)
         server_timestamp = requests.get(time_url).json()["serverTime"]
-        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
-        trade_fee = DataRetrieval(self.crypto, self.crypto+'PHP').getTradeFees()
+        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
+        trade_fee = DataRetrieval(self.crypto, self.crypto+'PHP').getTradeFees(server_timestamp)
 
         self.logger.info("Trade Signal: " + str(self.signal))
 
         # Emergency stop
-        if float(wallet_info["PHP"]['free']) < 150.00 and float(wallet_info[self.crypto]['free']) < 0.01 and self.signal == 1:
-            self.logger.info("Emergency Stop Triggered: Low Funds")
-            sys.exit(0)
+        # if float(wallet_info["PHP"]['free']) < 150.00 and float(wallet_info[self.crypto]['free']) < 0.01 and self.signal == 1:
+        #     self.logger.info("Emergency Stop Triggered: Low Funds")
+        #     sys.exit(0)
 
 
         # No Position
-        if float(wallet_info[self.crypto]['free']) < 0.01 and self.signal == 1:
+        if hold[0][0] == 0 and self.signal == 1:
 
-            crypto_price = Decimal(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice()[4])
+            crypto_price = Decimal(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice(server_timestamp)[4])
             # if self.signal == 1 or self.signal == -1:
             #     if self.signal == 1:
             #         purchase_signal = "buy"
@@ -107,7 +121,7 @@ class Momentum:
                 purchase_signal = "buy"
                 estimated_crypto_amount = Decimal(wallet_info['PHP']['free']) / crypto_price
                 take_profit = crypto_price + ((estimated_crypto_amount * Decimal(trade_fee[self.crypto+"PHP"]['takerCommission'])) * crypto_price) + (self.atr * 2)
-                stop_loss = Decimal(crypto_price) - self.atr
+                stop_loss = crypto_price + ((estimated_crypto_amount * Decimal(trade_fee[self.crypto+"PHP"]['takerCommission'])) * crypto_price) - (self.atr * Decimal(1.5))
 
                 params = {
                     "symbol": self.crypto + "PHP",
@@ -131,8 +145,13 @@ class Momentum:
                     sys.exit(0)
 
                 update_statement = "take_profit={}, stop_loss={}".format(take_profit, stop_loss)
-                Database(self.crypto).updateDB('Cryptocurrency', update_statement)
+                condition = "WHERE crypto_name='{self.crypto}'"
+                Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
                 self.logger.info("Updated Take Profit: {}, Stop Loss: {}".format(take_profit, stop_loss))
+
+                condition = "WHERE user_id=1"
+                Database(self.crypto).updateDB('User', "hold=1", condition)
+                self.logger.info("Added hold")
 
         # With Position
         else: 
@@ -140,15 +159,23 @@ class Momentum:
             profits = Database(self.crypto).retrieveData(retrieve_data_query)
             take_profit = profits[0][0]
             stop_loss = profits[0][1]
-            crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice()[4])
-            if ((crypto_price >= take_profit or crypto_price <= stop_loss) or (self.signal == 0 or self.signal == -1)) and float(wallet_info[self.crypto]['free']) > 0.01:    
+
+            crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice(server_timestamp)[4])
+            if ((crypto_price >= take_profit or crypto_price <= stop_loss) or (self.signal == 0 or self.signal == -1)) and hold[0][0] == 1:    
                 self.logger.info("Sell Signal Detected")
+
+                if self.crypto == "XRP":
+                    quantity = int(Decimal(wallet_info[self.crypto]['free']) * 100) / 100
+                elif self.crypto == "ETH":
+                    quantity = int(Decimal(wallet_info[self.crypto]['free']) * 1000000) / 1000000
+                elif self.crypto == "SOL":
+                    quantity = int(Decimal(wallet_info[self.crypto]['free']) * 10000) / 10000
 
                 params = {
                     "symbol": self.crypto + "PHP",
                     "side": "SELL",
                     "type": "MARKET",
-                    "quantity": int(float(wallet_info[self.crypto]['free']) * 100) / 100,
+                    "quantity": quantity,
                     "timestamp": server_timestamp,
                 }
 
@@ -166,5 +193,10 @@ class Momentum:
                     sys.exit(0)
 
                 update_statement = "take_profit=0, stop_loss=0"
-                Database(self.crypto).updateDB('Cryptocurrency', update_statement)
+                condition = "WHERE crypto_name='{self.crypto}'"
+                Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
                 self.logger.info("Updated Take Profit: 0, Stop Loss: 0")
+
+                condition = "WHERE user_id=1"
+                Database(self.crypto).updateDB('User', "hold=0", condition)
+                self.logger.info("Removed hold")
