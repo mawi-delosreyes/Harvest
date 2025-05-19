@@ -136,7 +136,7 @@ class Momentum:
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
-        trade = response.json()[0]['fills']
+        trade = response.json()['fills'][0]
         php_converted_commission = Decimal(trade['commission']) * Decimal(trade['price'])
         take_profit = crypto_price + (php_converted_commission*2) + (self.atr * Decimal(2))
         stop_loss = crypto_price + (php_converted_commission*2) - (self.atr * Decimal(1.5))
