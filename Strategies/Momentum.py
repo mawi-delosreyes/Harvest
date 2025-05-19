@@ -73,6 +73,7 @@ class Momentum:
             self.logger.info(f"OBV Signal: {indicator_signals.OBV()}")
             self.logger.info(f"RSI Signal: {indicator_signals.RSI()}")
             self.logger.info(f"Pivot Point Signal: {indicator_signals.PivotPoint()}")
+            self.logger.info(f"Total Points: {signal}")
         return signal
 
 
@@ -108,7 +109,6 @@ class Momentum:
 
 
     def executeBuySignal(self, server_timestamp, signal):
-        self.logger.info("Trade Signal: " + str(signal))
         self.logger.info("Buy Signal Detected")
 
         order_url = "openapi/v1/order"
@@ -136,7 +136,7 @@ class Momentum:
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
-        trade = response.json()['fills']
+        trade = response.json()[0]['fills']
         php_converted_commission = Decimal(trade['commission']) * Decimal(trade['price'])
         take_profit = crypto_price + (php_converted_commission*2) + (self.atr * Decimal(2))
         stop_loss = crypto_price + (php_converted_commission*2) - (self.atr * Decimal(1.5))
