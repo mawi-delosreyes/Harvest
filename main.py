@@ -1,23 +1,21 @@
 import threading
+import requests
 from Database.DataRetrieval import DataRetrieval
 from Database.Database import Database
 from Strategies.Momentum import Momentum
 from datetime import datetime
-from Logging.Logger import Logger
-import time
+from Coins.constants import host
 
 class Harvest:
-    def __init__(self, crypto, cryptoPair):
-        self.crypto = crypto
-        self.cryptoPair = cryptoPair
-        self.logger = Logger(crypto)
+    def __init__(self):
+        self.signal = None
         
 
-    def saveData(self):
-        retrieval = DataRetrieval(self.crypto, self.cryptoPair)
+    def saveData(self, crypto, cryptoPair):
+        retrieval = DataRetrieval(crypto, cryptoPair)
 
-        select_last_saved_data_query = "SELECT close_timestamp FROM %s ORDER BY id DESC LIMIT 1" % (self.crypto)
-        last_timestamp = Database(self.crypto).retrieveData(select_last_saved_data_query)
+        select_last_saved_data_query = "SELECT close_timestamp FROM %s ORDER BY id DESC LIMIT 1" % (crypto)
+        last_timestamp = Database(crypto).retrieveData(select_last_saved_data_query)
 
 
         if len(last_timestamp) == 0:
@@ -28,38 +26,61 @@ class Harvest:
             retrieval.saveDelayedData(last_timestamp[0][0])
 
     
-    def executeStrategy(self):
-        try:
-            strategy = Momentum(self.crypto)
-            strategy.retrieveData()
-            strategy.checkSignals()
-            strategy.tradeExecution()
-        except Exception as e:
-            self.logger.error(f"Error in strategy execution: {e}")
-    
-    def actions(self):
-        self.saveData()
-
-        if datetime.now().hour == 0 and datetime.now().minute == 0:
-           retrieval = DataRetrieval(self.crypto, self.cryptoPair)
-           retrieval.saveWalletBalance()
-
-        time.sleep(5)
-        self.executeStrategy()
+    def getSignals(self, crypto):
+        strategy = Momentum(crypto)
+        strategy.retrieveData()
+        self.signal = strategy.checkSignals()
 
 
+    def tradeExecution(self):
+
+        time_url = host + "openapi/v1/time"
+        server_timestamp = requests.get(time_url).json()["serverTime"]
+
+        check_hold_query = "SELECT crypto_name, hold FROM Cryptocurrency"
+        hold = Database(self.crypto).retrieveData(check_hold_query)
+        crypto_holdings = {entry[0]: entry[1] for entry in hold}
+
+        if not 1 in crypto_holdings.values():
+            eth = Harvest()
+            btc = Harvest()
+
+            eth_trading = threading.Thread(target=eth.getSignals, args=("ETH",))
+            btc_trading = threading.Thread(target=btc.getSignals, args=("BTC",))
+
+            eth_trading.start()
+            btc_trading.start()
+
+            eth_trading.join()
+            btc_trading.join()
+
+            crypto_signals = {
+                "ETH": eth.signal,
+                "BTC": btc.signal
+            }
+
+            crypto = max(crypto_signals, key=lambda k: (crypto_signals[k], -list(crypto_signals).index(k)))
+        
+            if crypto_signals[crypto] > 3:
+                strategy = Momentum(crypto)
+                strategy.executeBuySignal(server_timestamp, crypto_signals[crypto])
+        else:
+            crypto = [k for k, v in crypto_holdings.items() if v == 1][0]
+            strategy = Momentum(crypto)
+            strategy.executeTPSL(server_timestamp)
+
+
+    def action(self):
+
+        if datetime.now().minute % 5 ==0:
+            self.saveData("ETH", "ETHPHP")
+            self.saveData("BTC", "BTCPHP")
+            self.saveData("XRP", "XRPPHP")  
+            self.saveData("SOL", "SOLPHP")
+            self.saveData("AL", "ALPHP")     
+        
+        self.tradeExecution()
 
 
 if __name__ == "__main__":
-
-    sol_trading = threading.Thread(target=Harvest("SOL", "SOLPHP").actions)
-    eth_trading = threading.Thread(target=Harvest("ETH", "ETHPHP").actions)
-    xrp_trading = threading.Thread(target=Harvest("XRP", "XRPPHP").actions)
-
-    sol_trading.start()
-    eth_trading.start()
-    xrp_trading.start()
-
-    sol_trading.join()
-    eth_trading.join()
-    xrp_trading.join()
+    Harvest().action()

@@ -46,12 +46,11 @@ class DataRetrieval:
             Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
 
 
-    def getPrice(self, interval=None):
+    def getPrice(self, not_db_price=False):
         prices_url = host + "openapi/quote/v1/klines"
         time_url = host + "openapi/v1/time"
         server_timestamp = requests.get(time_url).json()["serverTime"]
 
-        if interval is not None: self.interval = interval
         params = {
             "symbol": self.cryptoPair,
             "interval": self.interval,
@@ -60,7 +59,10 @@ class DataRetrieval:
         }
 
         response = requests.get(prices_url, params=params)
-        data = response.json()[0]
+        if not_db_price:
+            data = response.json()[-1]
+        else:
+            data = response.json()[0]
         
         open_timestamp = datetime.fromtimestamp(data[0]/1000.0)
         open = data[1]
@@ -142,7 +144,7 @@ class DataRetrieval:
 
 
     def saveCryptoData(self):
-        open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades = self.getPrice(None)
+        open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades = self.getPrice(False)
         crypto_columns = "(open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)"
         crypto_data_value = (open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)
         

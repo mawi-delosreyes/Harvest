@@ -68,7 +68,7 @@ class Indicators:
         close = list(close)
         volume = list(volume)
 
-        latest_data = DataRetrieval(self.crypto, self.crypto + "PHP").getPrice("1m")
+        latest_data = DataRetrieval(self.crypto, self.crypto + "PHP").getPrice(True)
         open.append(Decimal(latest_data[1]))
         high.append(Decimal(latest_data[2]))
         low.append(Decimal(latest_data[3]))
