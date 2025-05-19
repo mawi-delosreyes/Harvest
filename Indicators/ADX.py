@@ -1,4 +1,5 @@
 import sys
+from decimal import Decimal
 from Logging.Logger import Logger
 
 class ATR:
@@ -48,7 +49,7 @@ class ADX:
         smoothed = [first_avg]
         for val in values[period:]:
             prev = smoothed[-1]
-            new_val = ((prev * (period - 1)) + val) / period
+            new_val = ((prev * Decimal(period - 1)) + val) / Decimal(period)
             smoothed.append(new_val)
         return smoothed
 
