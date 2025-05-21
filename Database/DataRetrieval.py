@@ -8,10 +8,13 @@ from Coins.constants import host
 class DataRetrieval:
     def __init__(self, crypto, cryptoPair):
         self.crypto = crypto
-        self.cryptoPair = cryptoPair.lower()
         self.interval = "5m"
-        self.logger = Logger(crypto)
-
+        if crypto is not None:
+            self.logger = Logger(crypto)
+            self.cryptoPair = cryptoPair.lower()
+        else:
+            self.logger = Logger("Harvest")
+            self.cryptoPair = None
 
     def saveDelayedData(self, last_timestamp):
         

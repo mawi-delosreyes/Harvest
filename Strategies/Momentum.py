@@ -20,6 +20,7 @@ class Momentum:
         self.signal_line = None
         self.plus_di = None
         self.minus_di = None
+        self.atr = None
         self.adx = None
         self.upper_band = None
         self.bb_sma = None
@@ -74,7 +75,7 @@ class Momentum:
             self.logger.info(f"RSI Signal: {indicator_signals.RSI()}")
             self.logger.info(f"Pivot Point Signal: {indicator_signals.PivotPoint()}")
             self.logger.info(f"Total Points: {signal}")
-        return signal
+        return signal, self.atr
 
 
     def retrieveData(self):
@@ -108,7 +109,7 @@ class Momentum:
         self.close_price = close_price
 
 
-    def executeBuySignal(self, server_timestamp, signal):
+    def executeBuySignal(self, server_timestamp, atr):
         self.logger.info("Buy Signal Detected")
 
         order_url = "openapi/v1/order"
@@ -138,14 +139,17 @@ class Momentum:
 
         trade = response.json()['fills'][0]
         php_converted_commission = Decimal(trade['commission']) * Decimal(trade['price'])
-        take_profit = crypto_price + (php_converted_commission*2) + (self.atr * Decimal(2))
-        stop_loss = crypto_price + (php_converted_commission*2) - (self.atr * Decimal(1.5))
+        take_profit = crypto_price + (php_converted_commission*2) + (Decimal(atr) * Decimal(2))
+        stop_loss = crypto_price + (php_converted_commission*2) - (Decimal(atr) * Decimal(1.5))
 
         update_statement = "take_profit={}, stop_loss={}, hold=1".format(take_profit, stop_loss)
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: {}, Stop Loss: {}".format(take_profit, stop_loss))
         self.logger.info("Added hold")
+
+        with open('/dev/tty8', 'w') as tty:
+            tty.write("Bought {} at price: {:.4f}. TP: {:.4f} SL:{:.4f}\n".format(self.crypto, crypto_price, take_profit, stop_loss))
 
 
     def executeTPSL(self, server_timestamp):
@@ -157,6 +161,7 @@ class Momentum:
         crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice(True)[4])
         if crypto_price >= take_profit or crypto_price <= stop_loss:    
             self.logger.info("Sell Signal Detected")
+            order_url = "openapi/v1/order"
 
             wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
             if self.crypto == "XRP":
@@ -167,8 +172,6 @@ class Momentum:
                 quantity = int(Decimal(wallet_info[self.crypto]['free']) * 1000000) / 1000000
             elif self.crypto == "SOL":
                 quantity = int(Decimal(wallet_info[self.crypto]['free']) * 10000) / 10000
-            elif self.crypto == "AL":
-                quantity = int(Decimal(wallet_info[self.crypto]['free']) * 10) / 10
 
             params = {
                 "symbol": self.crypto + "PHP",
@@ -196,3 +199,6 @@ class Momentum:
             Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
             self.logger.info("Updated Take Profit: 0, Stop Loss: 0")
             self.logger.info("Removed hold")
+
+            with open('/dev/tty8', 'w') as tty:
+                tty.write("Exit {} at price: {:.4f}.\n".format(self.crypto, crypto_price))
