@@ -49,7 +49,7 @@ class ADX:
         smoothed = [first_avg]
         for val in values[period:]:
             prev = smoothed[-1]
-            new_val = ((prev * Decimal(period - 1)) + val) / Decimal(period)
+            new_val = ((Decimal(prev) * Decimal(period - 1)) + val) / Decimal(period)
             smoothed.append(new_val)
         return smoothed
 
@@ -82,8 +82,8 @@ class ADX:
         smoothed_minus_dm = self.smooth(minus_dm_list, self.period)
         aligned_atr = atr[-len(smoothed_plus_dm):]
 
-        plus_di = [100 * (p / t) if t != 0 else 0 for p, t in zip(smoothed_plus_dm, aligned_atr)]
-        minus_di = [100 * (m / t) if t != 0 else 0 for m, t in zip(smoothed_minus_dm, aligned_atr)]
+        plus_di = [100 * (Decimal(p) / Decimal(t)) if t != 0 else 0 for p, t in zip(smoothed_plus_dm, aligned_atr)]
+        minus_di = [100 * (Decimal(m) / Decimal(t)) if t != 0 else 0 for m, t in zip(smoothed_minus_dm, aligned_atr)]
 
         dx_list = []
         for pdi, mdi in zip(plus_di, minus_di):

@@ -61,6 +61,9 @@ class Database:
     
 
     def updateDB(self, table, values, condition):
+
+        if self.crypto == None: self.crypto = "Harvest"
+
         if self.conn is None or not self.conn.is_connected():
             self.connectDB()
         if self.conn is None:

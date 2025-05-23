@@ -55,15 +55,26 @@ class Momentum:
             self.kijun, self.obv, self.obv_prev, self.pivot, self.r1, self.s1, self.r2, self.s2,
             self.r3, self.s3, self.rsi, self.close_price)
 
+            weights = {
+                'SMA': 1,
+                'MACD': 1.5,
+                'ADX': 1,
+                'BollingerBand': 0.5,
+                'Kijun': 1,
+                'OBV': 0.5,
+                'RSI': 1,
+                'PivotPoint': 1.5
+            }
+
             signal = sum([
-                indicator_signals.SMA(), 
-                indicator_signals.MACD(), 
-                indicator_signals.ADX(), 
-                indicator_signals.BollingerBand(), 
-                indicator_signals.Kijun(), 
-                indicator_signals.OBV(), 
-                indicator_signals.RSI(), 
-                indicator_signals.PivotPoint(), 
+                indicator_signals.SMA() * weights['SMA'], 
+                indicator_signals.MACD() * weights['MACD'], 
+                indicator_signals.ADX() * weights['ADX'], 
+                indicator_signals.BollingerBand() * weights['BollingerBand'], 
+                indicator_signals.Kijun() * weights['Kijun'], 
+                indicator_signals.OBV() * weights['OBV'], 
+                indicator_signals.RSI() * weights['RSI'], 
+                indicator_signals.PivotPoint() * weights['PivotPoint'], 
             ])
 
             self.logger.info(f"SMA Signal: {indicator_signals.SMA()}")
@@ -109,12 +120,11 @@ class Momentum:
         self.close_price = close_price
 
 
-    def executeBuySignal(self, server_timestamp, atr):
+    def executeBuySignal(self, server_timestamp):
         self.logger.info("Buy Signal Detected")
 
         order_url = "openapi/v1/order"
         wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
-        crypto_price = Decimal(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice(True)[4])
 
         params = {
             "symbol": self.crypto + "PHP",
@@ -122,6 +132,7 @@ class Momentum:
             "type": "MARKET",
             "quoteOrderQty": wallet_info['PHP']['free'],
             "timestamp": server_timestamp,
+            "recvWindow": 10000,
         }
 
         order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
@@ -138,67 +149,64 @@ class Momentum:
             sys.exit(0)
 
         trade = response.json()['fills'][0]
+        crypto_price = Decimal(trade['price'])
+        risk_percent = Decimal("0.002")
+        reward_percent = Decimal("0.005")
+        qty = Decimal(trade['qty'])
         php_converted_commission = Decimal(trade['commission']) * Decimal(trade['price'])
-        take_profit = crypto_price + (php_converted_commission*2) + (Decimal(atr) * Decimal(2))
-        stop_loss = crypto_price + (php_converted_commission*2) - (Decimal(atr) * Decimal(1.5))
+        total_fee_php = php_converted_commission * Decimal(2) 
+        break_even_price = crypto_price + (total_fee_php / qty)
+        take_profit = break_even_price * (1 + reward_percent)
+        stop_loss = crypto_price * (1 - risk_percent)
 
-        update_statement = "take_profit={}, stop_loss={}, hold=1".format(take_profit, stop_loss)
+        update_statement = "take_profit={}, stop_loss={}, break_even={}, hold=1, cooldown=5".format(take_profit, stop_loss, break_even_price)
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: {}, Stop Loss: {}".format(take_profit, stop_loss))
         self.logger.info("Added hold")
 
         with open('/dev/tty8', 'w') as tty:
-            tty.write("Bought {} at price: {:.4f}. TP: {:.4f} SL:{:.4f}\n".format(self.crypto, crypto_price, take_profit, stop_loss))
+            tty.write("\n\nBought {} at price: {:.4f}. TP: {:.4f} SL:{:.4f}\n\n".format(self.crypto, crypto_price, take_profit, stop_loss))
 
 
     def executeTPSL(self, server_timestamp):
-        retrieve_data_query = "SELECT take_profit, stop_loss FROM Cryptocurrency WHERE crypto_name = '{}'".format(self.crypto)
-        profits = Database(self.crypto).retrieveData(retrieve_data_query)
-        take_profit = profits[0][0]
-        stop_loss = profits[0][1]
+        self.logger.info("Sell Signal Detected")
+        order_url = "openapi/v1/order"
 
-        crypto_price = float(DataRetrieval(self.crypto, self.crypto + "PHP").getPrice(True)[4])
-        if crypto_price >= take_profit or crypto_price <= stop_loss:    
-            self.logger.info("Sell Signal Detected")
-            order_url = "openapi/v1/order"
+        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
+        if self.crypto == "XRP":
+            quantity = int(Decimal(wallet_info[self.crypto]['free']) * 100) / 100
+        elif self.crypto == "BTC":
+            quantity = int(Decimal(wallet_info[self.crypto]['free']) * 10000000) / 10000000
+        elif self.crypto == "ETH":
+            quantity = int(Decimal(wallet_info[self.crypto]['free']) * 1000000) / 1000000
+        elif self.crypto == "SOL":
+            quantity = int(Decimal(wallet_info[self.crypto]['free']) * 10000) / 10000
 
-            wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
-            if self.crypto == "XRP":
-                quantity = int(Decimal(wallet_info[self.crypto]['free']) * 100) / 100
-            elif self.crypto == "BTC":
-                quantity = int(Decimal(wallet_info[self.crypto]['free']) * 10000000) / 10000000
-            elif self.crypto == "ETH":
-                quantity = int(Decimal(wallet_info[self.crypto]['free']) * 1000000) / 1000000
-            elif self.crypto == "SOL":
-                quantity = int(Decimal(wallet_info[self.crypto]['free']) * 10000) / 10000
+        params = {
+            "symbol": self.crypto + "PHP",
+            "side": "SELL",
+            "type": "MARKET",
+            "quantity": quantity,
+            "timestamp": server_timestamp,
+            "recvWindow": 10000,
+        }
 
-            params = {
-                "symbol": self.crypto + "PHP",
-                "side": "SELL",
-                "type": "MARKET",
-                "quantity": quantity,
-                "timestamp": server_timestamp,
-            }
+        order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
 
-            order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
+        headers = {
+            'X-COINS-APIKEY': api_key
+        }
+        
+        try:
+            response = requests.post(order_url, params=params, headers=headers)
+            self.logger.info("Order Response: {}".format(response.json()))
+        except Exception as e:
+            self.logger.error("Error executing order: {}".format(e))
+            sys.exit(0)
 
-            headers = {
-                'X-COINS-APIKEY': api_key
-            }
-            
-            try:
-                response = requests.post(order_url, params=params, headers=headers)
-                self.logger.info("Order Response: {}".format(response.json()))
-            except Exception as e:
-                self.logger.error("Error executing order: {}".format(e))
-                sys.exit(0)
-
-            update_statement = "take_profit=0, stop_loss=0, hold=0"
-            condition = "WHERE crypto_name='{}'".format(self.crypto)
-            Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
-            self.logger.info("Updated Take Profit: 0, Stop Loss: 0")
-            self.logger.info("Removed hold")
-
-            with open('/dev/tty8', 'w') as tty:
-                tty.write("Exit {} at price: {:.4f}.\n".format(self.crypto, crypto_price))
+        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=3"
+        condition = "WHERE crypto_name='{}'".format(self.crypto)
+        Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
+        self.logger.info("Updated Take Profit: 0, Stop Loss: 0")
+        self.logger.info("Removed hold")

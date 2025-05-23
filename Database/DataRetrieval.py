@@ -2,7 +2,7 @@ import requests
 from datetime import datetime
 from .Database import Database
 from Logging.Logger import Logger
-from Coins.GenerateSignature import generateTradeSignature
+from Coins.GenerateSignature import generateTradeSignatureSTG
 from Coins.constants import host
 
 class DataRetrieval:
@@ -102,7 +102,7 @@ class DataRetrieval:
             "recvWindow": 10000,
         }
 
-        tradeFee_url, api_key, params['signature'] = generateTradeSignature(tradeFee_url, params)
+        tradeFee_url, api_key, params['signature'] = generateTradeSignatureSTG(tradeFee_url, params)
         headers = {
             'X-COINS-APIKEY': api_key,
         }
@@ -121,7 +121,7 @@ class DataRetrieval:
             'recvWindow': 5000,
         }
 
-        account_url, api_key, params['signature'] = generateTradeSignature(account_url, params)
+        account_url, api_key, params['signature'] = generateTradeSignatureSTG(account_url, params)
         headers = {
             'X-COINS-APIKEY': api_key,
         }

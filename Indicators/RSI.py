@@ -1,4 +1,5 @@
 import sys
+from decimal import Decimal
 from Logging.Logger import Logger
 
 class RSI:
@@ -26,8 +27,8 @@ class RSI:
                 gains.append(0)
                 losses.append(-delta)
 
-        avg_gain = sum(gains) / self.period
-        avg_loss = sum(losses) / self.period
+        avg_gain = Decimal(sum(gains) / self.period)
+        avg_loss = Decimal(sum(losses) / self.period)
 
         if avg_loss == 0:
             self.result = 100
