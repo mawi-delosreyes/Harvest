@@ -1,5 +1,7 @@
 import sys
+import numpy as np
 from Logging.Logger import Logger
+from decimal import Decimal
 
 class OBV:
     def __init__(self, crypto, close_data, volume_data):
@@ -15,13 +17,11 @@ class OBV:
             self.logger.info("Close and volume data are not the same length")
             sys.exit(0)    
 
+        obv_values = [float(v) for v in self.close_data]
+        x = np.arange(len(obv_values))
+        y = np.array(obv_values)
 
-        obv_values = [0]
-        for i in range(1, len(self.close_data)):
-            if self.close_data[i] > self.close_data[i - 1]:
-                obv_values.append(obv_values[-1] + self.volume_data[i])
-            elif self.close_data[i] < self.close_data[i - 1]:
-                obv_values.append(obv_values[-1] - self.volume_data[i])
-            else:
-                obv_values.append(obv_values[-1])
-        self.result = (obv_values[-1], obv_values[-2])
+        # Now fit the slope
+        slope, _ = np.polyfit(x, y, 1)
+
+        self.result = (obv_values[-1], slope)

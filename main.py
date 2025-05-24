@@ -10,7 +10,7 @@ from Coins.constants import host
 class Harvest:
     def __init__(self):
         self.signal = None
-        self.atr = None
+        self.sma = None
 
 
     def saveData(self, crypto, cryptoPair):
@@ -31,7 +31,7 @@ class Harvest:
     def getSignals(self, crypto):
         strategy = Momentum(crypto)
         strategy.retrieveData()
-        self.signal, self.atr = strategy.checkSignals()
+        self.signal, self.sma = strategy.checkSignals()
 
 
     def tradeExecution(self):
@@ -53,41 +53,63 @@ class Harvest:
             for entry in hold
         }
 
+        coin_max_thresholds = {
+            'BTC': 9,
+            'ETH': 8.7,
+            'SOL': 6.5
+        }
+        coin_min_thresholds = {
+            'BTC': 3.3,
+            'ETH': 3.1,
+            'SOL': 2.4
+        }
+
         eth = Harvest()
         btc = Harvest()
-        # xrp = Harvest()
+        sol = Harvest()
 
         eth_trading = threading.Thread(target=eth.getSignals, args=("ETH",))
         btc_trading = threading.Thread(target=btc.getSignals, args=("BTC",))
-        # xrp_trading = threading.Thread(target=xrp.getSignals, args=("XRP",))
+        sol_trading = threading.Thread(target=sol.getSignals, args=("SOL",))
 
         eth_trading.start()
         btc_trading.start()
-        # xrp_trading.start()
+        sol_trading.start()
 
         eth_trading.join()
         btc_trading.join()
-        # xrp_trading.join()
+        sol_trading.join()
 
         crypto_signals = {
-            "ETH": eth.signal,
             "BTC": btc.signal,
-            # "XRP": xrp.signal,
+            "ETH": eth.signal,
+            "SOL": sol.signal
         }
 
-        crypto = max(crypto_signals, key=lambda k: (crypto_signals[k], -list(crypto_signals).index(k)))
-        if all(crypto['hold'] != 1 for crypto in crypto_holdings.values()):
+        uptred_filter = {k: v for k, v in crypto_signals.items() if v[1] > 0}
+        crypto = max(uptred_filter.items(), key=lambda item: item[1][0])[0] if uptred_filter else None
+        if crypto != None:
+            crypto_price = float(DataRetrieval(crypto, crypto + "PHP").getPrice(True)[4])
+
             with open('/dev/tty8', 'w') as tty:
-                tty.write(str(crypto_signals) + '\n')
+                tty.write(str(datetime.now().minute) + ' - ' + str(crypto_signals) + '\n')
         
-            if crypto_signals[crypto] > 3:
+            if (crypto_holdings[crypto]['cooldown'] == 0 and 
+                coin_min_thresholds[crypto] + 0.5 < crypto_signals[crypto][0] < coin_max_thresholds[crypto] - 0.5 and
+                crypto_signals[crypto][1] > 0.3 and
+                crypto_signals[crypto][0] - crypto_signals[crypto][1] > 1.2
+            ):
+                if crypto == "BTC":
+                    sma_mid = btc.sma[0]
+                    sma_long = btc.sma[1]
+                elif crypto == "ETH":
+                    sma_mid = eth.sma[0]
+                    sma_long = eth.sma[1]
+                elif crypto == "SOL":
+                    sma_mid = sol.sma[0]
+                    sma_long = sol.sma[1]
 
-                if crypto == "BTC" and crypto_holdings[crypto]['cooldown'] != 0 and crypto_signals['ETH'] > 4 and crypto_holdings['ETH']['hold'] != 1:
-                    crypto = "ETH"
-                elif crypto == "ETH" and crypto_holdings[crypto]['cooldown'] != 0 and crypto_signals['BTC'] > 4 and crypto_holdings['BTC']['hold'] != 1:
-                    crypto = "BTC"
-
-                if crypto_holdings[crypto]['cooldown'] == 0:
+                if crypto_price > sma_mid + Decimal("1.005") and sma_long > sma_mid:
                     strategy = Momentum(crypto)
                     strategy.executeBuySignal(server_timestamp)
 
@@ -105,7 +127,9 @@ class Harvest:
             if (
                 crypto_price >= crypto_holdings[crypto]['take_profit'] or 
                 (crypto_price <= crypto_holdings[crypto]['stop_loss'] and crypto_holdings[crypto]['cooldown'] == 0) or
-                (crypto_signals[crypto] < -3 and crypto_holdings[crypto]['cooldown'] == 0)
+                (crypto_price >= crypto_holdings[crypto]['break_even'] and crypto_holdings[crypto]['cooldown'] == 0 and crypto_signals[crypto][1] < 0) or
+                ((crypto_signals[crypto][0] > coin_max_thresholds[crypto] or crypto_signals[crypto][0] < coin_min_thresholds[crypto]) 
+                    and crypto_price >= crypto_holdings[crypto]['break_even'] and crypto_holdings[crypto]['cooldown'] == 0)
             ):
                 strategy = Momentum(crypto)
                 strategy.executeTPSL(server_timestamp)

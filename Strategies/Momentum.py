@@ -1,19 +1,20 @@
 import requests
 import sys
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from Database.Database import Database
 from Database.DataRetrieval import DataRetrieval
 from Indicators.Signals import Signals
 from Indicators.Indicators import Indicators
 from Logging.Logger import Logger
-from Coins.GenerateSignature import generateTradeSignature
+from Coins.GenerateSignature import generateTradeSignatureSTG
 from Coins.constants import host
 
 class Momentum:
     def __init__(self, crypto):
         self.crypto = crypto
-        self.sma_fast = None
-        self.sma_slow = None
+        self.sma_short = None
+        self.sma_mid = None
+        self.sma_long = None
         self.ema_fast = None
         self.ema_slow = None
         self.macd = None
@@ -36,37 +37,39 @@ class Momentum:
         self.r3 = None
         self.s3 = None
         self.rsi = None
+        self.forecast_start = None
+        self.forecast_end = None
         self.close_price = None
         self.logger = Logger(crypto)
 
 
     def checkSignals(self):
-        signal = 0
-
+        indicator_signal = 0
+        forecast_signal = 0
         if all(value is not None for value in [
-            self.sma_fast, self.sma_slow, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
+            self.sma_short, self.sma_mid, self.sma_long, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
             self.plus_di, self.minus_di, self.adx, self.upper_band, self.bb_sma, self.lower_band,
             self.kijun, self.obv, self.obv_prev, self.pivot, self.r1, self.s1, self.r2, self.s2,
-            self.r3, self.s3, self.rsi, self.close_price
+            self.r3, self.s3, self.rsi, self.close_price, self.forecast_start, self.forecast_end
         ]):
-
-            indicator_signals = Signals(self.sma_fast, self.sma_slow, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
+            indicator_signals = Signals(self.sma_short, self.sma_mid, self.sma_long, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
             self.plus_di, self.minus_di, self.adx, self.upper_band, self.bb_sma, self.lower_band,
             self.kijun, self.obv, self.obv_prev, self.pivot, self.r1, self.s1, self.r2, self.s2,
-            self.r3, self.s3, self.rsi, self.close_price)
+            self.r3, self.s3, self.rsi, self.close_price, self.forecast_start, self.forecast_end)
 
             weights = {
                 'SMA': 1,
-                'MACD': 1.5,
-                'ADX': 1,
-                'BollingerBand': 0.5,
+                'MACD': 2,
+                'ADX': 1.5,
+                'BollingerBand': 0.3,
                 'Kijun': 1,
-                'OBV': 0.5,
-                'RSI': 1,
-                'PivotPoint': 1.5
+                'OBV': 0.2,
+                'RSI': 1.5,
+                'PivotPoint': 1,
+                'Forecast': 2.5
             }
 
-            signal = sum([
+            indicator_signal = sum([
                 indicator_signals.SMA() * weights['SMA'], 
                 indicator_signals.MACD() * weights['MACD'], 
                 indicator_signals.ADX() * weights['ADX'], 
@@ -75,7 +78,10 @@ class Momentum:
                 indicator_signals.OBV() * weights['OBV'], 
                 indicator_signals.RSI() * weights['RSI'], 
                 indicator_signals.PivotPoint() * weights['PivotPoint'], 
+                indicator_signals.Forecast() * weights['Forecast']
             ])
+
+            indicator_signal = float(Decimal(indicator_signal).quantize(Decimal('1.' + '0'*2), rounding=ROUND_HALF_UP))
 
             self.logger.info(f"SMA Signal: {indicator_signals.SMA()}")
             self.logger.info(f"MACD Signal: {indicator_signals.MACD()}")
@@ -85,16 +91,19 @@ class Momentum:
             self.logger.info(f"OBV Signal: {indicator_signals.OBV()}")
             self.logger.info(f"RSI Signal: {indicator_signals.RSI()}")
             self.logger.info(f"Pivot Point Signal: {indicator_signals.PivotPoint()}")
-            self.logger.info(f"Total Points: {signal}")
-        return signal, self.atr
+            self.logger.info(f"Forecast Signal: {indicator_signals.Forecast()}")
+            self.logger.info(f"Total Points: {indicator_signal}")
+
+            forecast_signal = indicator_signals.Forecast()
+        return (indicator_signal, forecast_signal), (self.sma_mid, self.sma_long) 
 
 
     def retrieveData(self):
 
-        sma, macd, adx, bb, kijun, obv, pp, rsi, close_price = Indicators(self.crypto).runIndicators()
-
-        self.sma_fast = sma[0]
-        self.sma_slow = sma[1]
+        sma, macd, adx, bb, kijun, obv, pp, rsi, close_price, forecast  = Indicators(self.crypto).runIndicators()
+        self.sma_short = sma[0]
+        self.sma_mid = sma[0]
+        self.sma_long = sma[1]
         self.ema_fast = macd[0]
         self.ema_slow = macd[1]
         self.macd = macd[2]
@@ -118,6 +127,8 @@ class Momentum:
         self.s3 = pp[6]
         self.rsi = rsi
         self.close_price = close_price
+        self.forecast_start = forecast[0]
+        self.forecast_end = forecast[1]
 
 
     def executeBuySignal(self, server_timestamp):
@@ -135,7 +146,7 @@ class Momentum:
             "recvWindow": 10000,
         }
 
-        order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
+        order_url, api_key, params['signature'] = generateTradeSignatureSTG(order_url, params)
 
         headers = {
             'X-COINS-APIKEY': api_key
@@ -159,7 +170,7 @@ class Momentum:
         take_profit = break_even_price * (1 + reward_percent)
         stop_loss = crypto_price * (1 - risk_percent)
 
-        update_statement = "take_profit={}, stop_loss={}, break_even={}, hold=1, cooldown=5".format(take_profit, stop_loss, break_even_price)
+        update_statement = "take_profit={}, stop_loss={}, break_even={}, hold=1, cooldown=10".format(take_profit, stop_loss, break_even_price)
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: {}, Stop Loss: {}".format(take_profit, stop_loss))
@@ -192,7 +203,7 @@ class Momentum:
             "recvWindow": 10000,
         }
 
-        order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
+        order_url, api_key, params['signature'] = generateTradeSignatureSTG(order_url, params)
 
         headers = {
             'X-COINS-APIKEY': api_key
@@ -205,7 +216,7 @@ class Momentum:
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
-        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=3"
+        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=15"
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: 0, Stop Loss: 0")

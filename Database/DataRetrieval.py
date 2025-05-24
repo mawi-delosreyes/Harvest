@@ -133,7 +133,10 @@ class DataRetrieval:
     
 
     def saveWalletBalance(self):
-        wallet_balance = self.getWalletBalance()
+        time_url = host + "openapi/v1/time"
+        server_timestamp = requests.get(time_url).json()["serverTime"]
+
+        wallet_balance = self.getWalletBalance(server_timestamp)
         crypto_price = self.getCryptoPrice()
 
 
