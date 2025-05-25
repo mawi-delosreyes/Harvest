@@ -6,7 +6,7 @@ from Database.DataRetrieval import DataRetrieval
 from Indicators.Signals import Signals
 from Indicators.Indicators import Indicators
 from Logging.Logger import Logger
-from Coins.GenerateSignature import generateTradeSignatureSTG
+from Coins.GenerateSignature import generateTradeSignature
 from Coins.constants import host
 
 class Momentum:
@@ -146,7 +146,7 @@ class Momentum:
             "recvWindow": 10000,
         }
 
-        order_url, api_key, params['signature'] = generateTradeSignatureSTG(order_url, params)
+        order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
 
         headers = {
             'X-COINS-APIKEY': api_key
@@ -162,7 +162,7 @@ class Momentum:
         trade = response.json()['fills'][0]
         crypto_price = Decimal(trade['price'])
         risk_percent = Decimal("0.002")
-        reward_percent = Decimal("0.005")
+        reward_percent = Decimal("0.003")
         qty = Decimal(trade['qty'])
         php_converted_commission = Decimal(trade['commission']) * Decimal(trade['price'])
         total_fee_php = php_converted_commission * Decimal(2) 
@@ -203,7 +203,7 @@ class Momentum:
             "recvWindow": 10000,
         }
 
-        order_url, api_key, params['signature'] = generateTradeSignatureSTG(order_url, params)
+        order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
 
         headers = {
             'X-COINS-APIKEY': api_key

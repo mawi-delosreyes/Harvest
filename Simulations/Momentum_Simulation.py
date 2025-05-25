@@ -116,14 +116,18 @@ class Momentum_Simulation:
                 'take_profit': 0,
                 'break_even': 0,
                 'stop_loss': 0,
-                'cooldown': 0
+                'cooldown': 0,
+                'possible_entry': 0,
+                'entry_hold': 0
             },
             "ETH": {
                 'hold': 0,
                 'take_profit': 0,
                 'break_even': 0,
                 'stop_loss': 0,
-                'cooldown': 0
+                'cooldown': 0,
+                'possible_entry': 0,
+                'entry_hold': 0
             },
             # "XRP": {
             #     'hold': 0,
@@ -137,7 +141,9 @@ class Momentum_Simulation:
                 'take_profit': 0,
                 'break_even': 0,
                 'stop_loss': 0,
-                'cooldown': 0
+                'cooldown': 0,
+                'possible_entry': 0,
+                'entry_hold': 0
             }
         }
 
@@ -192,38 +198,53 @@ class Momentum_Simulation:
                 crypto = max(uptred_filter.items(), key=lambda item: item[1][0])[0] if uptred_filter else None
 
                 if crypto != None:
-                    if (crypto_holdings[crypto]['cooldown'] == 0 and 
-                        coin_min_thresholds[crypto] + 0.5 < crypto_signals[crypto][0] < coin_max_thresholds[crypto] - 0.5 and
-                        crypto_signals[crypto][1] > 0.3 and
-                        crypto_signals[crypto][0] - crypto_signals[crypto][1] > 1.2
-                    ):
+                    if crypto == "BTC":
+                        crypto_price = btc_data[-1][3]
+                        sma_mid = btc_sma[0]
+                        sma_long = btc_sma[1]
+                    elif crypto == "ETH":
+                        crypto_price = eth_data[-1][3]
+                        sma_mid = eth_sma[0]
+                        sma_long = eth_sma[1]
+                    # elif crypto == "XRP":
+                    #     crypto_price = xrp_data[-1][3]
+                    #     sma_mid = xrp_sma
+                    elif crypto == "SOL":
+                        crypto_price = sol_data[-1][3]
+                        sma_mid = sol_sma[0]
+                        sma_long = sol_sma[1]
 
-                        if crypto == "BTC":
-                            crypto_price = btc_data[-1][3]
-                            sma_mid = btc_sma[0]
-                            sma_long = btc_sma[1]
-                        elif crypto == "ETH":
-                            crypto_price = eth_data[-1][3]
-                            sma_mid = eth_sma[0]
-                            sma_long = eth_sma[1]
-                        # elif crypto == "XRP":
-                        #     crypto_price = xrp_data[-1][3]
-                        #     sma_mid = xrp_sma
-                        elif crypto == "SOL":
-                            crypto_price = sol_data[-1][3]
-                            sma_mid = sol_sma[0]
-                            sma_long = sol_sma[1]
+                    if crypto_holdings[crypto]['entry_hold'] == 0:
 
-                        if crypto_price > sma_mid + Decimal("1.005") and sma_long > sma_mid:
-                            tp, sl, be = self.executeBuySignal(crypto_price) 
+                        if (crypto_holdings[crypto]['cooldown'] == 0 and 
+                            coin_min_thresholds[crypto] + 0.5 < crypto_signals[crypto][0] < coin_max_thresholds[crypto] - 0.5 and
+                            crypto_signals[crypto][1] > 0.3 and
+                            crypto_signals[crypto][0] - crypto_signals[crypto][1] > 1.2 and
+                            crypto_holdings[crypto]['possible_entry'] == 0
+                        ):
 
-                            crypto_holdings[crypto]['hold'] = 1
-                            crypto_holdings[crypto]['take_profit'] = tp
-                            crypto_holdings[crypto]['break_even'] = be
-                            crypto_holdings[crypto]['stop_loss'] = sl
-                            crypto_holdings[crypto]['cooldown'] = 3
-                            trades += 1
-                            # print(f"{crypto}: Price: {crypto_price}, TP: {tp}, BE: {be}, SL: {sl}")
+                            if crypto_price > sma_mid + Decimal("1.005") and sma_long > sma_mid and crypto_holdings[crypto]['possible_entry'] == 0:
+                                crypto_holdings[crypto]['entry_hold'] = 3
+                                crypto_holdings[crypto]['possible_entry'] = crypto_price * Decimal("1.002")
+
+                    else:
+                        if crypto_price <= crypto_holdings[crypto]['possible_entry']:
+
+                                tp, sl, be = self.executeBuySignal(crypto_price) 
+
+                                crypto_holdings[crypto]['hold'] = 1
+                                crypto_holdings[crypto]['take_profit'] = tp
+                                crypto_holdings[crypto]['break_even'] = be
+                                crypto_holdings[crypto]['stop_loss'] = sl
+                                crypto_holdings[crypto]['cooldown'] = 3
+
+                                crypto_holdings[crypto]['possible_entry'] = 0
+                                crypto_holdings[crypto]['entry_hold'] = 0
+                                trades += 1
+                                print(f"{crypto}: Price: {crypto_price}, TP: {tp}, BE: {be}, SL: {sl}")
+                        else:
+                            crypto_holdings[crypto]['entry_hold'] -= 1
+
 
             elif any(crypto['hold'] == 1 for crypto in crypto_holdings.values()):
                 # print("|")
@@ -239,19 +260,19 @@ class Momentum_Simulation:
                 elif crypto == "SOL":
                     crypto_price = sol_data[-1][3]
 
-                if (
+                if (crypto_holdings[crypto]['cooldown'] == 0 and 
                     crypto_price >= crypto_holdings[crypto]['take_profit'] or 
-                    (crypto_price <= crypto_holdings[crypto]['stop_loss'] and crypto_holdings[crypto]['cooldown'] == 0) or
-                    (crypto_price >= crypto_holdings[crypto]['break_even'] and crypto_holdings[crypto]['cooldown'] == 0 and crypto_signals[crypto][1] < 0) or
+                    crypto_price <= crypto_holdings[crypto]['stop_loss'] or
+                    (crypto_price >= crypto_holdings[crypto]['break_even']and crypto_signals[crypto][1] < 0) or
                     ((crypto_signals[crypto][0] > coin_max_thresholds[crypto] or crypto_signals[crypto][0] < coin_min_thresholds[crypto]) 
-                     and crypto_price >= crypto_holdings[crypto]['break_even'] and crypto_holdings[crypto]['cooldown'] == 0)
+                     and crypto_price >= crypto_holdings[crypto]['break_even'])
                 ):
                     if crypto_price < crypto_holdings[crypto]['break_even']:
                         fail_trades += 1
-                        # print(f"Fail: {crypto}: Crypto Price: {crypto_price}, Sell Price: {crypto_holdings[crypto]['stop_loss']}")
+                        print(f"Fail: {crypto}: Crypto Price: {crypto_price}, Sell Price: {crypto_holdings[crypto]['stop_loss']}")
                     else:
                         success_trades += 1
-                        # print(f"Success: {crypto}: Crypto Price: {crypto_price}, Sell Price: {crypto_holdings[crypto]['break_even']}")
+                        print(f"Success: {crypto}: Crypto Price: {crypto_price}, Sell Price: {crypto_holdings[crypto]['break_even']}")
 
                     crypto_holdings[crypto]['hold'] = 0
                     crypto_holdings[crypto]['take_profit'] = 0
