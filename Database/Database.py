@@ -7,13 +7,16 @@ class Database:
 
         config = configparser.ConfigParser()
         config.read('Database/config.ini')
-        self.hostname = config['staging-database']['host']
-        self.user= config['staging-database']['user']
-        self.password= config['staging-database']['password']
-        self.database= config['staging-database']['db']
-        self.port = config['staging-database']['port']
+        self.hostname = config['prod-database']['host']
+        self.user= config['prod-database']['user']
+        self.password= config['prod-database']['password']
+        self.database= config['prod-database']['db']
+        self.port = config['prod-database']['port']
         self.conn = None
-        self.logger = Logger(crypto)
+        if crypto is not None:
+            self.logger = Logger(crypto)
+        else:
+            self.logger = Logger("Harvest")
         self.crypto = crypto
 
 
@@ -58,6 +61,9 @@ class Database:
     
 
     def updateDB(self, table, values, condition):
+
+        if self.crypto == None: self.crypto = "Harvest"
+
         if self.conn is None or not self.conn.is_connected():
             self.connectDB()
         if self.conn is None:
@@ -69,7 +75,7 @@ class Database:
         cur.execute(update_query)
         self.conn.commit()
 
-        self.logger.info(" Update to Database : " + self.crypto + " "+ str(values))
+        self.logger.info("Update to Database : " + self.crypto + " "+ str(values))
 
 
     def closeDB(self):
