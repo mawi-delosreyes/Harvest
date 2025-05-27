@@ -111,15 +111,14 @@ class Harvest:
                     elif crypto == "SOL":
                         sma_mid = sol.sma[0]
                         sma_long = sol.sma[1]
-
-                    if crypto_holdings[crypto]['entry_hold'] == 0 and (crypto_price > sma_mid + Decimal("1.005") and sma_long > sma_mid):
-                        possible_entry = crypto_price * Decimal("1.002")
-                        Database(None).updateDB('Cryptocurrency', f'entry_hold = 10, possible_entry={possible_entry}', '')
+                    if crypto_holdings[crypto]['entry_hold'] == 0 and sma_long > sma_mid:
+                        potential_entry = Decimal(crypto_price) - (Decimal(crypto_price) * Decimal("0.002"))
+                        Database(None).updateDB('Cryptocurrency', f'entry_hold = 10, potential_entry={potential_entry}', f"WHERE crypto_name='{crypto}'")
                     elif crypto_holdings[crypto]['entry_hold'] != 0:
-                        if crypto_price <= crypto_holdings[crypto]['possible_entry']:
+                        if crypto_price <= crypto_holdings[crypto]['potential_entry']:
                             strategy = Momentum(crypto)
                             strategy.executeBuySignal(server_timestamp)
-                            Database(None).updateDB('Cryptocurrency', f'entry_hold = 0, possible_entry=0', '')
+                            Database(None).updateDB('Cryptocurrency', f'entry_hold = 0, potential_entry=0', f"WHERE crypto_name='{crypto}'")
 
             elif any(crypto['hold'] == 1 for crypto in crypto_holdings.values()):
                 crypto = [k for k, v in crypto_holdings.items() if v['hold'] == 1][0]

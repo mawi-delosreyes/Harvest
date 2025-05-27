@@ -117,7 +117,7 @@ class Momentum_Simulation:
                 'break_even': 0,
                 'stop_loss': 0,
                 'cooldown': 0,
-                'possible_entry': 0,
+                'potential_entry': 0,
                 'entry_hold': 0
             },
             "ETH": {
@@ -126,7 +126,7 @@ class Momentum_Simulation:
                 'break_even': 0,
                 'stop_loss': 0,
                 'cooldown': 0,
-                'possible_entry': 0,
+                'potential_entry': 0,
                 'entry_hold': 0
             },
             # "XRP": {
@@ -142,7 +142,7 @@ class Momentum_Simulation:
                 'break_even': 0,
                 'stop_loss': 0,
                 'cooldown': 0,
-                'possible_entry': 0,
+                'potential_entry': 0,
                 'entry_hold': 0
             }
         }

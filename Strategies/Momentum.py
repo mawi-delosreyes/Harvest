@@ -165,8 +165,8 @@ class Momentum:
         reward_percent = Decimal("0.003")
         qty = Decimal(trade['qty'])
         php_converted_commission = Decimal(trade['commission']) * Decimal(trade['price'])
-        total_fee_php = php_converted_commission * Decimal(2) 
-        break_even_price = crypto_price + (total_fee_php / qty)
+        #total_fee_php = php_converted_commission * Decimal(2) 
+        break_even_price = crypto_price + (php_converted_commission / qty)
         take_profit = break_even_price * (1 + reward_percent)
         stop_loss = crypto_price * (1 - risk_percent)
 
