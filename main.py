@@ -113,7 +113,7 @@ class Harvest:
                         sma_long = sol.sma[1]
                     if crypto_holdings[crypto]['entry_hold'] == 0 and sma_long > sma_mid:
                         potential_entry = Decimal(crypto_price) - (Decimal(crypto_price) * Decimal("0.002"))
-                        Database(None).updateDB('Cryptocurrency', f'entry_hold = 10, potential_entry={potential_entry}', f"WHERE crypto_name='{crypto}'")
+                        Database(None).updateDB('Cryptocurrency', f'entry_hold = 20, potential_entry={potential_entry}', f"WHERE crypto_name='{crypto}'")
                     elif crypto_holdings[crypto]['entry_hold'] != 0:
                         if crypto_price <= crypto_holdings[crypto]['potential_entry']:
                             strategy = Momentum(crypto)
@@ -131,7 +131,7 @@ class Harvest:
                     tty.write(str(crypto) + " SL: " + str(crypto_holdings[crypto]['stop_loss']) + "\n")
                     tty.write("\n")
 
-                if ( crypto_holdings[crypto]['cooldown'] == 0 and 
+                if (crypto_holdings[crypto]['cooldown'] == 0 and 
                     crypto_price >= crypto_holdings[crypto]['take_profit'] or 
                     crypto_price <= crypto_holdings[crypto]['stop_loss']or
                     (crypto_price >= crypto_holdings[crypto]['break_even'] and crypto_signals[crypto][1] < 0) or
