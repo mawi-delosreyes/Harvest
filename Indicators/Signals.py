@@ -2,7 +2,7 @@ class Signals:
 
     def __init__(self, sma_short, sma_mid, sma_long, ema_fast, ema_slow, macd, signal_line,
                  plus_di, minus_di, adx, upper_band, bb_sma, lower_band,
-                 kijun, obv, obv_prev, pivot, r1, s1, r2, s2, r3, s3, rsi, close_price, forecast_start, forecast_end):
+                 kijun, obv, obv_prev, pivot, r1, s1, r2, s2, r3, s3, rsi, close_price):
         self.sma_short = sma_short
         self.sma_mid = sma_mid
         self.sma_long = sma_long
@@ -28,8 +28,6 @@ class Signals:
         self.s3 = s3
         self.rsi = rsi
         self.close_price = close_price
-        self.forecast_start = forecast_start
-        self.forecast_end = forecast_end
 
     
     def SMA(self):
@@ -123,16 +121,3 @@ class Signals:
         elif self.close_price < self.s3:
             return -2 
         return 0 
-    
-        
-    def Forecast(self):
-        pct_change = (self.forecast_end - self.forecast_start) / self.forecast_start
-        if pct_change > 0.01:
-            return 2
-        elif pct_change > 0.005:
-            return 1
-        elif pct_change < -0.01:
-            return -2
-        elif pct_change < -0.005:
-            return -1
-        return 0

@@ -95,7 +95,7 @@ class ADX:
         adx_values = [first_adx]
         for dx in dx_list[self.period:]:
             prev_adx = adx_values[-1]
-            adx = ((prev_adx * (self.period - 1)) + dx) / self.period
+            adx = (Decimal(prev_adx * (self.period - 1)) + dx) / self.period
             adx_values.append(adx)
 
         self.result = (adx_values[-1], atr[-1], plus_di[-1], minus_di[-1])

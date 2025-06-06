@@ -10,7 +10,6 @@ from .Pivot_Points import PivotPoints
 from .Kijun_Sen import KijunSen
 from .RSI import RSI
 from .OBV import OBV
-from .Forecast import Forecast
 from Logging.Logger import Logger
 from Database.Database import Database
 from Database.DataRetrieval import DataRetrieval
@@ -20,20 +19,20 @@ class Indicators:
     def __init__(self, crypto):
         self.logger = Logger(crypto)
         self.crypto = crypto
-        self.sma_short_period = 9
-        self.sma_mid_period = 30
-        self.sma_long_period = 50
-        self.macd_fast_period = 12
-        self.macd_slow_period = 26
-        self.macd_signal_line_period = 9
-        self.adx_period = 20
-        self.bb_period = 25
-        self.bb_std_dev = 2.5
-        self.kijun_sen_period = 34
-        self.rsi_period = 20
+        self.sma_short_period = 5
+        self.sma_mid_period = 15
+        self.sma_long_period = 30
+        self.macd_fast_period = 6
+        self.macd_slow_period = 21
+        self.macd_signal_line_period = 5
+        self.adx_period = 14
+        self.bb_period = 20
+        self.bb_std_dev = 2.0
+        self.kijun_sen_period = 20
+        self.rsi_period = 12
         self.forecast_period = 50
         self.rows = max(self.sma_short_period, self.sma_mid_period, self.sma_long_period, self.macd_fast_period, self.macd_slow_period, 
-                        self.macd_signal_line_period, self.adx_period, self.bb_period, self.kijun_sen_period, self.rsi_period, self.forecast_period) + self.kijun_sen_period
+                        self.macd_signal_line_period, self.adx_period, self.bb_period, self.kijun_sen_period, self.rsi_period, self.forecast_period)
         self.latest_crypto_data = None
 
 

@@ -2,7 +2,7 @@ import requests
 from datetime import datetime
 from .Database import Database
 from Logging.Logger import Logger
-from Coins.GenerateSignature import generateTradeSignatureSTG
+from Coins.GenerateSignature import generateTradeSignature
 from Coins.constants import host
 
 class DataRetrieval:
@@ -88,7 +88,7 @@ class DataRetrieval:
         }
 
         response = requests.get(prices_url, params=params)
-        price = response.json()['price']
+        price = response.json()[0]['price']
 
         return price
     
@@ -102,7 +102,7 @@ class DataRetrieval:
             "recvWindow": 10000,
         }
 
-        tradeFee_url, api_key, params['signature'] = generateTradeSignatureSTG(tradeFee_url, params)
+        tradeFee_url, api_key, params['signature'] = generateTradeSignature(tradeFee_url, params)
         headers = {
             'X-COINS-APIKEY': api_key,
         }
@@ -121,14 +121,17 @@ class DataRetrieval:
             'recvWindow': 5000,
         }
 
-        account_url, api_key, params['signature'] = generateTradeSignatureSTG(account_url, params)
+        account_url, api_key, params['signature'] = generateTradeSignature(account_url, params)
         headers = {
             'X-COINS-APIKEY': api_key,
         }
 
         response = requests.get(account_url, params=params, headers=headers)
-        data = response.json()
-        wallet_balance = {entry['asset']: entry for entry in data['balances']}
+        data = response.json()[0]
+        try:
+            wallet_balance = {entry['asset']: entry for entry in data['balances']}
+        except:
+            print(response.json())
         return wallet_balance
     
 

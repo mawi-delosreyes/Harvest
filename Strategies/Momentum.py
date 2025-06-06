@@ -37,36 +37,33 @@ class Momentum:
         self.r3 = None
         self.s3 = None
         self.rsi = None
-        self.forecast_start = None
-        self.forecast_end = None
         self.close_price = None
         self.logger = Logger(crypto)
 
 
     def checkSignals(self):
         indicator_signal = 0
-        forecast_signal = 0
+
         if all(value is not None for value in [
             self.sma_short, self.sma_mid, self.sma_long, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
             self.plus_di, self.minus_di, self.adx, self.upper_band, self.bb_sma, self.lower_band,
             self.kijun, self.obv, self.obv_prev, self.pivot, self.r1, self.s1, self.r2, self.s2,
-            self.r3, self.s3, self.rsi, self.close_price, self.forecast_start, self.forecast_end
+            self.r3, self.s3, self.rsi, self.close_price
         ]):
             indicator_signals = Signals(self.sma_short, self.sma_mid, self.sma_long, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
             self.plus_di, self.minus_di, self.adx, self.upper_band, self.bb_sma, self.lower_band,
             self.kijun, self.obv, self.obv_prev, self.pivot, self.r1, self.s1, self.r2, self.s2,
-            self.r3, self.s3, self.rsi, self.close_price, self.forecast_start, self.forecast_end)
+            self.r3, self.s3, self.rsi, self.close_price)
 
             weights = {
-                'SMA': 1,
-                'MACD': 2,
-                'ADX': 1.5,
-                'BollingerBand': 0.3,
-                'Kijun': 1,
-                'OBV': 0.2,
-                'RSI': 1.5,
-                'PivotPoint': 1,
-                'Forecast': 2.5
+                'SMA': 0.8,
+                'MACD': 1.3,
+                'ADX': 1.6,
+                'BollingerBand': 1.0,
+                'Kijun': 1.8,
+                'OBV': 1.5,
+                'RSI': 1.0,
+                'PivotPoint': 0.5
             }
 
             indicator_signal = sum([
@@ -77,8 +74,7 @@ class Momentum:
                 indicator_signals.Kijun() * weights['Kijun'], 
                 indicator_signals.OBV() * weights['OBV'], 
                 indicator_signals.RSI() * weights['RSI'], 
-                indicator_signals.PivotPoint() * weights['PivotPoint'], 
-                indicator_signals.Forecast() * weights['Forecast']
+                indicator_signals.PivotPoint() * weights['PivotPoint']
             ])
 
             indicator_signal = float(Decimal(indicator_signal).quantize(Decimal('1.' + '0'*2), rounding=ROUND_HALF_UP))
@@ -94,8 +90,7 @@ class Momentum:
             self.logger.info(f"Forecast Signal: {indicator_signals.Forecast()}")
             self.logger.info(f"Total Points: {indicator_signal}")
 
-            forecast_signal = indicator_signals.Forecast()
-        return (indicator_signal, forecast_signal), (self.sma_mid, self.sma_long) 
+        return indicator_signal, (self.sma_mid, self.sma_long) 
 
 
     def retrieveData(self):

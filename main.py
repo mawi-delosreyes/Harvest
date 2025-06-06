@@ -1,9 +1,13 @@
+import joblib
+import numpy as np
+import warnings
 import threading
 import requests
 from decimal import Decimal
 from Database.DataRetrieval import DataRetrieval
 from Database.Database import Database
 from Strategies.Momentum import Momentum
+from Indicators.Indicators import Indicators
 from datetime import datetime
 from Coins.constants import host
 
@@ -40,7 +44,7 @@ class Harvest:
         time_url = host + "openapi/v1/time"
         server_timestamp = requests.get(time_url).json()["serverTime"]
         
-        check_hold_query = "SELECT crypto_name, hold, take_profit, break_even, stop_loss, cooldown, potential_entry, entry_hold FROM Cryptocurrency"
+        check_hold_query = "SELECT crypto_name, hold, take_profit, break_even, stop_loss, cooldown, reach_even FROM Cryptocurrency"
         hold = Database(None).retrieveData(check_hold_query)
         crypto_holdings = {
             entry[0]: {
@@ -49,21 +53,20 @@ class Harvest:
                 'break_even': entry[3],
                 'stop_loss': entry[4],
                 'cooldown': entry[5],
-                'potential_entry': entry[6],
-                'entry_hold': entry[7]
+                'reach_even': entry[6]
             }
             for entry in hold
         }
 
         coin_max_thresholds = {
-            'BTC': 9,
-            'ETH': 8.7,
-            'SOL': 6.5
+            'BTC': 9.0,
+            'ETH': 8.5,
+            'SOL': 8.0
         }
         coin_min_thresholds = {
-            'BTC': 3.3,
-            'ETH': 3.1,
-            'SOL': 2.4
+            'BTC': 7.3,
+            'ETH': 6.8,
+            'SOL': 6.3
         }
 
         eth = Harvest()
@@ -90,37 +93,40 @@ class Harvest:
 
         uptred_filter = {k: v for k, v in crypto_signals.items() if v[1] > 0}
         crypto = max(uptred_filter.items(), key=lambda item: item[1][0])[0] if uptred_filter else None
-        if crypto != None:
+        if crypto and crypto_holdings[crypto]['cooldown'] == 0:
             if all(crypto['hold'] == 0 for crypto in crypto_holdings.values()):
                 crypto_price = float(DataRetrieval(crypto, crypto + "PHP").getPrice(True)[4])
 
                 with open('/dev/tty8', 'w') as tty:
                     tty.write(str(datetime.now().minute) + ' - ' + str(crypto_signals) + '\n')
 
-                if (crypto_holdings[crypto]['cooldown'] == 0 and 
-                    coin_min_thresholds[crypto] + 0.5 < crypto_signals[crypto][0] < coin_max_thresholds[crypto] - 0.5 and
-                    crypto_signals[crypto][1] > 0.3 and
-                    crypto_signals[crypto][0] - crypto_signals[crypto][1] > 1.2
-                ):
-                    if crypto == "BTC":
-                        sma_mid = btc.sma[0]
-                        sma_long = btc.sma[1]
-                    elif crypto == "ETH":
-                        sma_mid = eth.sma[0]
-                        sma_long = eth.sma[1]
-                    elif crypto == "SOL":
-                        sma_mid = sol.sma[0]
-                        sma_long = sol.sma[1]
-                    if crypto_holdings[crypto]['entry_hold'] == 0 and sma_long > sma_mid:
-                        potential_entry = Decimal(crypto_price) - (Decimal(crypto_price) * Decimal("0.002"))
-                        Database(None).updateDB('Cryptocurrency', f'entry_hold = 20, potential_entry={potential_entry}', f"WHERE crypto_name='{crypto}'")
-                    elif crypto_holdings[crypto]['entry_hold'] != 0:
-                        if crypto_price <= crypto_holdings[crypto]['potential_entry']:
-                            strategy = Momentum(crypto)
-                            strategy.executeBuySignal(server_timestamp)
-                            Database(None).updateDB('Cryptocurrency', f'entry_hold = 0, potential_entry=0', f"WHERE crypto_name='{crypto}'")
+                if crypto == "BTC":
+                    btc_data = Indicators("BTC").retrieveDatabaseData()
+                    btc_model = joblib.load("Models/btc_model.pkl")
+                    sma_mid, sma_long = btc.sma
+                    forecast = btc_model.predict(np.array(btc_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
+                elif crypto == "ETH":
+                    eth_data = Indicators("ETH").retrieveDatabaseData()
+                    sma_mid = eth.sma[0]
+                    sma_long = eth.sma[1]
+                    forecast = btc_model.predict(np.array(eth_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
+                elif crypto == "SOL":
+                    sol_data = Indicators("SOL").retrieveDatabaseData()
+                    sma_mid = sol.sma[0]
+                    sma_long = sol.sma[1]
+                    forecast = btc_model.predict(np.array(sol_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
 
-            elif any(crypto['hold'] == 1 for crypto in crypto_holdings.values()):
+                min_forecast = min(forecast)
+
+                if ((crypto_price < (min_forecast * 1.002) or (forecast[-1] - forecast[0]) / len(forecast) > 0.01) and
+                    sma_mid > sma_long and
+                    coin_min_thresholds[crypto] < crypto_signals[crypto] < coin_max_thresholds[crypto]
+                ):
+                    strategy = Momentum(crypto)
+                    strategy.executeBuySignal(server_timestamp)
+                    Database(None).updateDB('Cryptocurrency', f'cooldown = {max(0, int((crypto_signals[crypto] - coin_min_thresholds[crypto]) * 2))}, reach_even = 0', f"WHERE crypto_name='{crypto}'")
+
+            elif any(crypto['hold'] == 1 for crypto in crypto_holdings.values()) and crypto_holdings[crypto]['cooldown'] == 0:
                 crypto = [k for k, v in crypto_holdings.items() if v['hold'] == 1][0]
                 crypto_price = float(DataRetrieval(crypto, crypto + "PHP").getPrice(True)[4])
 
@@ -131,12 +137,31 @@ class Harvest:
                     tty.write(str(crypto) + " SL: " + str(crypto_holdings[crypto]['stop_loss']) + "\n")
                     tty.write("\n")
 
-                if (crypto_holdings[crypto]['cooldown'] == 0 and 
-                    crypto_price >= crypto_holdings[crypto]['take_profit'] or 
-                    crypto_price <= crypto_holdings[crypto]['stop_loss']or
-                    (crypto_price >= crypto_holdings[crypto]['break_even'] and crypto_signals[crypto][1] < 0) or
-                    ((crypto_signals[crypto][0] > coin_max_thresholds[crypto] or crypto_signals[crypto][0] < coin_min_thresholds[crypto]) 
-                        and crypto_price >= crypto_holdings[crypto]['break_even'])
+                if crypto == "BTC":
+                    btc_data = Indicators("BTC").retrieveDatabaseData()
+                    btc_model = joblib.load("Models/btc_model.pkl")
+                    sma_mid, sma_long = btc.sma
+                    forecast = btc_model.predict(np.array(btc_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
+                elif crypto == "ETH":
+                    eth_data = Indicators("ETH").retrieveDatabaseData()
+                    sma_mid = eth.sma[0]
+                    sma_long = eth.sma[1]
+                    forecast = btc_model.predict(np.array(eth_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
+                elif crypto == "SOL":
+                    sol_data = Indicators("SOL").retrieveDatabaseData()
+                    sma_mid = sol.sma[0]
+                    sma_long = sol.sma[1]
+                    forecast = btc_model.predict(np.array(sol_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
+
+                max_forecast = max(forecast)
+
+                if crypto_holdings[crypto]['reach_even'] == 0 and crypto_price >= crypto_holdings[crypto]['break_even']:
+                    Database(None).updateDB('Cryptocurrency', 'reach_even = 1', f"WHERE crypto_name='{crypto}'")
+
+                if ((crypto_holdings[crypto]['reach_even'] != 1 and crypto_price < crypto_holdings[crypto]['stop_loss']) or
+                    (crypto_holdings[crypto]['reach_even'] == 1 and ((crypto_price < crypto_holdings[crypto]['break_even'] and sma_mid < sma_long) or
+                                                                     (crypto_price > crypto_holdings[crypto]['break_even']))) or
+                    (crypto_price > crypto_holdings[crypto]['take_profit'] or crypto_price > max_forecast)
                 ):
                     strategy = Momentum(crypto)
                     strategy.executeTPSL(server_timestamp)
@@ -161,7 +186,7 @@ class Harvest:
             with open('/dev/tty8', 'w') as tty:
                 tty.write("Wallet balance saved to database\n")
         
-        self.tradeExecution()
+        #self.tradeExecution()
 
 
 if __name__ == "__main__":
