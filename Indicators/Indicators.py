@@ -77,7 +77,6 @@ class Indicators:
         close.append(Decimal(latest_data[4]))
         volume.append(Decimal(latest_data[5]))
 
-        forecast = Forecast(close)
         sma = SMA(self.crypto, close, self.sma_short_period, self.sma_mid_period, self.sma_long_period)
         macd = MACD(self.crypto, close, self.macd_fast_period, self.macd_slow_period, self.macd_signal_line_period)
         adx = ADX(self.crypto, high, low, close, self.adx_period)
@@ -88,7 +87,6 @@ class Indicators:
         rsi = RSI(self.crypto, close, self.rsi_period)
 
         try:
-            forecast_thread = threading.Thread(target=forecast.computeForecast)
             sma_thread = threading.Thread(target=sma.computeSMA)
             macd_thread = threading.Thread(target=macd.computeMACD)
             adx_thread = threading.Thread(target=adx.computeADX)
@@ -98,7 +96,6 @@ class Indicators:
             pp_thread = threading.Thread(target=pp.computePivotPoint)
             rsi_thread = threading.Thread(target=rsi.computeRSI)
 
-            forecast_thread.start()
             sma_thread.start()
             macd_thread.start()
             adx_thread.start()
@@ -108,7 +105,6 @@ class Indicators:
             pp_thread.start()
             rsi_thread.start()
 
-            forecast_thread.join()
             sma_thread.join()
             macd_thread.join()
             adx_thread.join()
@@ -118,7 +114,7 @@ class Indicators:
             pp_thread.join()
             rsi_thread.join()
 
-            return sma.result, macd.result, adx.result, bb.result, kijun.result, obv.result, pp.result, rsi.result, close[-1], forecast.result
+            return sma.result, macd.result, adx.result, bb.result, kijun.result, obv.result, pp.result, rsi.result, close[-1]
 
         except Exception as e:
             self.logger.error(e)

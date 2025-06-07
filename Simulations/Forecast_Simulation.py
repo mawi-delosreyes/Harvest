@@ -139,9 +139,9 @@ class Forecast_Simulation:
             'SOL': 8.0
         }
         coin_min_thresholds = {
-            'BTC': 7.3,
-            'ETH': 6.8,
-            'SOL': 6.3
+            'BTC': 5.3,
+            'ETH': 4.8,
+            'SOL': 4.3
         }
 
         btc_model = joblib.load("Models/btc_model.pkl")

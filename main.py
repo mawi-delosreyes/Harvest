@@ -39,7 +39,7 @@ class Harvest:
 
 
     def tradeExecution(self):
-        Database(None).updateDB('Cryptocurrency', 'cooldown = GREATEST(cooldown - 1, 0), entry_hold = GREATEST(entry_hold - 1, 0)', '')
+        Database(None).updateDB('Cryptocurrency', 'cooldown = GREATEST(cooldown - 1, 0)', '')
 
         time_url = host + "openapi/v1/time"
         server_timestamp = requests.get(time_url).json()["serverTime"]
@@ -64,9 +64,9 @@ class Harvest:
             'SOL': 8.0
         }
         coin_min_thresholds = {
-            'BTC': 7.3,
-            'ETH': 6.8,
-            'SOL': 6.3
+            'BTC': 5.3,
+            'ETH': 4.8,
+            'SOL': 4.3
         }
 
         eth = Harvest()
@@ -91,31 +91,32 @@ class Harvest:
             "SOL": sol.signal
         }
 
-        uptred_filter = {k: v for k, v in crypto_signals.items() if v[1] > 0}
-        crypto = max(uptred_filter.items(), key=lambda item: item[1][0])[0] if uptred_filter else None
+        with open('/dev/tty8', 'w') as tty:
+            tty.write(str(datetime.now().minute) + ' - ' + str(crypto_signals) + '\n')
+
+        uptred_filter = {k: v for k, v in crypto_signals.items() if v > 0}
+        crypto = max(uptred_filter.items(), key=lambda item: item[1])[0] if uptred_filter else None
         if crypto and crypto_holdings[crypto]['cooldown'] == 0:
             if all(crypto['hold'] == 0 for crypto in crypto_holdings.values()):
                 crypto_price = float(DataRetrieval(crypto, crypto + "PHP").getPrice(True)[4])
-
-                with open('/dev/tty8', 'w') as tty:
-                    tty.write(str(datetime.now().minute) + ' - ' + str(crypto_signals) + '\n')
 
                 if crypto == "BTC":
                     btc_data = Indicators("BTC").retrieveDatabaseData()
                     btc_model = joblib.load("Models/btc_model.pkl")
                     sma_mid, sma_long = btc.sma
-                    forecast = btc_model.predict(np.array(btc_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
+                    forecast = btc_model.predict(np.array(btc_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
                 elif crypto == "ETH":
                     eth_data = Indicators("ETH").retrieveDatabaseData()
+                    eth_model = joblib.load("Models/eth_model.pkl")
                     sma_mid = eth.sma[0]
                     sma_long = eth.sma[1]
-                    forecast = btc_model.predict(np.array(eth_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
+                    forecast = eth_model.predict(np.array(eth_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
                 elif crypto == "SOL":
                     sol_data = Indicators("SOL").retrieveDatabaseData()
+                    sol_model = joblib.load("Models/sol_model.pkl")
                     sma_mid = sol.sma[0]
                     sma_long = sol.sma[1]
-                    forecast = btc_model.predict(np.array(sol_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
-
+                    forecast = sol_model.predict(np.array(sol_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
                 min_forecast = min(forecast)
 
                 if ((crypto_price < (min_forecast * 1.002) or (forecast[-1] - forecast[0]) / len(forecast) > 0.01) and
@@ -186,7 +187,7 @@ class Harvest:
             with open('/dev/tty8', 'w') as tty:
                 tty.write("Wallet balance saved to database\n")
         
-        #self.tradeExecution()
+        self.tradeExecution()
 
 
 if __name__ == "__main__":

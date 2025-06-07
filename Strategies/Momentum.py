@@ -87,7 +87,6 @@ class Momentum:
             self.logger.info(f"OBV Signal: {indicator_signals.OBV()}")
             self.logger.info(f"RSI Signal: {indicator_signals.RSI()}")
             self.logger.info(f"Pivot Point Signal: {indicator_signals.PivotPoint()}")
-            self.logger.info(f"Forecast Signal: {indicator_signals.Forecast()}")
             self.logger.info(f"Total Points: {indicator_signal}")
 
         return indicator_signal, (self.sma_mid, self.sma_long) 
@@ -95,7 +94,7 @@ class Momentum:
 
     def retrieveData(self):
 
-        sma, macd, adx, bb, kijun, obv, pp, rsi, close_price, forecast  = Indicators(self.crypto).runIndicators()
+        sma, macd, adx, bb, kijun, obv, pp, rsi, close_price  = Indicators(self.crypto).runIndicators()
         self.sma_short = sma[0]
         self.sma_mid = sma[0]
         self.sma_long = sma[1]
@@ -122,8 +121,6 @@ class Momentum:
         self.s3 = pp[6]
         self.rsi = rsi
         self.close_price = close_price
-        self.forecast_start = forecast[0]
-        self.forecast_end = forecast[1]
 
 
     def executeBuySignal(self, server_timestamp):
