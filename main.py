@@ -11,6 +11,8 @@ from Indicators.Indicators import Indicators
 from datetime import datetime
 from Coins.constants import host
 
+warnings.filterwarnings('ignore')
+
 class Harvest:
     def __init__(self):
         self.signal = None
@@ -142,17 +144,17 @@ class Harvest:
                     btc_data = Indicators("BTC").retrieveDatabaseData()
                     btc_model = joblib.load("Models/btc_model.pkl")
                     sma_mid, sma_long = btc.sma
-                    forecast = btc_model.predict(np.array(btc_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
+                    forecast = btc_model.predict(np.array(btc_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
                 elif crypto == "ETH":
                     eth_data = Indicators("ETH").retrieveDatabaseData()
-                    sma_mid = eth.sma[0]
-                    sma_long = eth.sma[1]
-                    forecast = btc_model.predict(np.array(eth_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
+                    eth_model = joblib.load("Models/eth_model.pkl")
+                    sma_mid,sma_long = eth.sma
+                    forecast = eth_model.predict(np.array(eth_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
                 elif crypto == "SOL":
                     sol_data = Indicators("SOL").retrieveDatabaseData()
-                    sma_mid = sol.sma[0]
-                    sma_long = sol.sma[1]
-                    forecast = btc_model.predict(np.array(sol_data[-50:])[:, [1, 2, 3, 5]]) * 1e6
+                    sol_model = joblib.load("Models/sol_model.pkl")
+                    sma_mid, sma_long = sol.sma
+                    forecast = sol_model.predict(np.array(sol_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
 
                 max_forecast = max(forecast)
 
@@ -170,24 +172,28 @@ class Harvest:
                     with open('/dev/tty8', 'w') as tty:
                         tty.write("\n\nExit {} at price: {:.4f}.\n\n".format(crypto, crypto_price))
 
+                    wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
+                    if wallet_info['PHP'] < 150:
+                        Database(None).updateDB('User', 'active = 0', f"WHERE user_id=1")
+
 
     def action(self):
 
-        if datetime.now().minute % 5 == 0:
-            self.saveData("ETH", "ETHPHP")
-            self.saveData("BTC", "BTCPHP")
-            self.saveData("XRP", "XRPPHP")  
-            self.saveData("SOL", "SOLPHP")
+        self.saveData("ETH", "ETHPHP")
+        self.saveData("BTC", "BTCPHP")
+        self.saveData("XRP", "XRPPHP")  
+        self.saveData("SOL", "SOLPHP")
 
-            with open('/dev/tty8', 'w') as tty:
-                tty.write(str(datetime.now().strftime("%H:%M:%S")) + " - Saved Data" + '\n')
-
-        if datetime.now().hour == 0 and datetime.now().minute == 0:
-            DataRetrieval(None, None).saveWalletBalance()
-            with open('/dev/tty8', 'w') as tty:
-                tty.write("Wallet balance saved to database\n")
+        with open('/dev/tty8', 'w') as tty:
+            tty.write(str(datetime.now().strftime("%H:%M:%S")) + " - Saved Data" + '\n')
         
-        self.tradeExecution()
+        select_active = "SELECT active FROM User WHERE user_id=1"
+        active = Database(None).retrieveData(select_active)
+        if active[0][0] == 1:
+            self.tradeExecution()
+        else:
+            with open('/dev/tty8', 'w') as tty:
+                tty.write('User not active\n')     
 
 
 if __name__ == "__main__":

@@ -80,7 +80,7 @@ class Forecast_Simulation:
 
     def executeBuySignal(self, crypto_price):
         risk_percent = Decimal("0.005")
-        reward_percent = Decimal("0.005")
+        reward_percent = Decimal("0.0075")
         total_fee_percent = Decimal("0.006")  # 0.3% entry + 0.3% exit
 
         break_even_price = crypto_price * (1 + total_fee_percent)
@@ -259,7 +259,7 @@ class Forecast_Simulation:
                         crypto_holdings[crypto]['break_even'] = 0
                         crypto_holdings[crypto]['stop_loss'] = 0
                         crypto_holdings[crypto]['reach_even'] = 0
-                    elif crypto_price > crypto_holdings[crypto]['break_even']:
+                    elif crypto_price > crypto_holdings[crypto]['break_even']*Decimal(1.004):
                         if (sma_mid < sma_long or crypto_price > max_forecast or 
                             coin_min_thresholds[crypto] > crypto_signals[crypto] 
                             ):

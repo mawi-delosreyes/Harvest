@@ -118,7 +118,7 @@ class DataRetrieval:
 
         params = {
             "timestamp": server_timestamp,
-            'recvWindow': 5000,
+            'recvWindow': 10000,
         }
 
         account_url, api_key, params['signature'] = generateTradeSignature(account_url, params)
@@ -127,10 +127,10 @@ class DataRetrieval:
         }
 
         response = requests.get(account_url, params=params, headers=headers)
-        data = response.json()[0]
         try:
+            data = response.json()
             wallet_balance = {entry['asset']: entry for entry in data['balances']}
-        except:
+        except Exception as e:
             print(response.json())
         return wallet_balance
     
