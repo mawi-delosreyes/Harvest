@@ -148,6 +148,10 @@ class Momentum:
             response = requests.post(order_url, params=params, headers=headers)
             self.logger.info("Order Response: {}".format(response.json()))
         except Exception as e:
+            if response.json()['msg'] == "Request ip is not in the whitelist" and response.json()['code'] == -2017:
+                with open('/dev/tty8', 'w') as tty:
+                    tty.write('Check IP. Request ip is not in the whitelist\n')    
+
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
@@ -162,7 +166,7 @@ class Momentum:
         take_profit = break_even_price * (1 + reward_percent)
         stop_loss = crypto_price * (1 - risk_percent)
 
-        update_statement = "take_profit={}, stop_loss={}, break_even={}, hold=1, cooldown=10".format(take_profit, stop_loss, break_even_price)
+        update_statement = "take_profit={}, stop_loss={}, break_even={}, hold=1, cooldown=2".format(take_profit, stop_loss, break_even_price)
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: {}, Stop Loss: {}".format(take_profit, stop_loss))
@@ -205,10 +209,14 @@ class Momentum:
             response = requests.post(order_url, params=params, headers=headers)
             self.logger.info("Order Response: {}".format(response.json()))
         except Exception as e:
+            if response.json()['msg'] == "Request ip is not in the whitelist" and response.json()['code'] == -2017:
+                with open('/dev/tty8', 'w') as tty:
+                    tty.write('Check IP. Request ip is not in the whitelist\n')    
+
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
-        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=15, reach_even=0"
+        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=3, reach_even=0"
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: 0, Stop Loss: 0")

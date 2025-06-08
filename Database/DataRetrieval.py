@@ -108,8 +108,14 @@ class DataRetrieval:
         }
 
         response = requests.get(tradeFee_url, params=params, headers=headers)
-        data = response.json()
-        crypto_balance = {entry['symbol']: entry for entry in data}
+        try:
+            data = response.json()
+            crypto_balance = {entry['symbol']: entry for entry in data}
+        except Exception as e:
+            print(response.json)
+            if response.json()['msg'] == "Request ip is not in the whitelist" and response.json()['code'] == -2017:
+                with open('/dev/tty8', 'w') as tty:
+                    tty.write('Check IP. Request ip is not in the whitelist\n')    
         return crypto_balance
     
 
@@ -132,6 +138,9 @@ class DataRetrieval:
             wallet_balance = {entry['asset']: entry for entry in data['balances']}
         except Exception as e:
             print(response.json())
+            if response.json()['msg'] == "Request ip is not in the whitelist" and response.json()['code'] == -2017:
+                with open('/dev/tty8', 'w') as tty:
+                    tty.write('Check IP. Request ip is not in the whitelist\n')    
         return wallet_balance
     
 
