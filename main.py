@@ -62,35 +62,35 @@ class Harvest:
 
         coin_max_thresholds = {
             'BTC': 9.0,
-            'ETH': 8.5,
-            'SOL': 8.0
+            'ETH': 8.5
+            # 'SOL': 8.0
         }
         coin_min_thresholds = {
             'BTC': 5.3,
-            'ETH': 4.8,
-            'SOL': 4.3
+            'ETH': 4.8
+            # 'SOL': 4.3
         }
 
         eth = Harvest()
         btc = Harvest()
-        sol = Harvest()
+        # sol = Harvest()
 
         eth_trading = threading.Thread(target=eth.getSignals, args=("ETH",))
         btc_trading = threading.Thread(target=btc.getSignals, args=("BTC",))
-        sol_trading = threading.Thread(target=sol.getSignals, args=("SOL",))
+        # sol_trading = threading.Thread(target=sol.getSignals, args=("SOL",))
 
         eth_trading.start()
         btc_trading.start()
-        sol_trading.start()
+        # sol_trading.start()
 
         eth_trading.join()
         btc_trading.join()
-        sol_trading.join()
+        # sol_trading.join()
 
         crypto_signals = {
             "BTC": btc.signal,
-            "ETH": eth.signal,
-            "SOL": sol.signal
+            "ETH": eth.signal
+            # "SOL": sol.signal
         }
 
         with open('/dev/tty8', 'w') as tty:
@@ -113,12 +113,13 @@ class Harvest:
                     sma_mid = eth.sma[0]
                     sma_long = eth.sma[1]
                     forecast = eth_model.predict(np.array(eth_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
-                elif crypto == "SOL":
-                    sol_data = Indicators("SOL").retrieveDatabaseData()
-                    sol_model = joblib.load("Models/sol_model.pkl")
-                    sma_mid = sol.sma[0]
-                    sma_long = sol.sma[1]
-                    forecast = sol_model.predict(np.array(sol_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
+                # elif crypto == "SOL":
+                #     sol_data = Indicators("SOL").retrieveDatabaseData()
+                #     sol_model = joblib.load("Models/sol_model.pkl")
+                #     sma_mid = sol.sma[0]
+                #     sma_long = sol.sma[1]
+                #     forecast = sol_model.predict(np.array(sol_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
+
                 min_forecast = min(forecast)
 
                 if ((crypto_price < (min_forecast * 1.002) or (forecast[-1] - forecast[0]) / len(forecast) > 0.01) and
@@ -150,11 +151,11 @@ class Harvest:
                     eth_model = joblib.load("Models/eth_model.pkl")
                     sma_mid,sma_long = eth.sma
                     forecast = eth_model.predict(np.array(eth_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
-                elif crypto == "SOL":
-                    sol_data = Indicators("SOL").retrieveDatabaseData()
-                    sol_model = joblib.load("Models/sol_model.pkl")
-                    sma_mid, sma_long = sol.sma
-                    forecast = sol_model.predict(np.array(sol_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
+                # elif crypto == "SOL":
+                #     sol_data = Indicators("SOL").retrieveDatabaseData()
+                #     sol_model = joblib.load("Models/sol_model.pkl")
+                #     sma_mid, sma_long = sol.sma
+                #     forecast = sol_model.predict(np.array(sol_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
 
                 max_forecast = max(forecast)
 

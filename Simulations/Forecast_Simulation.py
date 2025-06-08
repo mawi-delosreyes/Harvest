@@ -99,11 +99,11 @@ class Forecast_Simulation:
 
         btc = self.retrieveDatabaseData("BTC")
         eth = self.retrieveDatabaseData("ETH")
-        sol = self.retrieveDatabaseData("SOL")
+        # sol = self.retrieveDatabaseData("SOL")
 
         btc_window = btc[:max_periods]
         eth_window = eth[:max_periods]
-        sol_window = sol[:max_periods]
+        # sol_window = sol[:max_periods]
 
 
         crypto_holdings = {
@@ -122,46 +122,46 @@ class Forecast_Simulation:
                 'stop_loss': 0,
                 'reach_even': 0,
                 'cooldown': 0
-            },
-            "SOL": {
-                'hold': 0,
-                'take_profit': 0,
-                'break_even': 0,
-                'stop_loss': 0,
-                'reach_even': 0,
-                'cooldown': 0
             }
+            # "SOL": {
+            #     'hold': 0,
+            #     'take_profit': 0,
+            #     'break_even': 0,
+            #     'stop_loss': 0,
+            #     'reach_even': 0,
+            #     'cooldown': 0
+            # }
         }
 
         coin_max_thresholds = {
             'BTC': 9.0,
             'ETH': 8.5,
-            'SOL': 8.0
+            # 'SOL': 8.0
         }
         coin_min_thresholds = {
             'BTC': 5.3,
             'ETH': 4.8,
-            'SOL': 4.3
+            # 'SOL': 4.3
         }
 
         btc_model = joblib.load("Models/btc_model.pkl")
         eth_model = joblib.load("Models/eth_model.pkl")
-        sol_model = joblib.load("Models/sol_model.pkl")
+        # sol_model = joblib.load("Models/sol_model.pkl")
 
         for i in range(max_periods, len(btc)):
 
             btc_data = btc_window
             eth_data = eth_window
-            sol_data = sol_window
+            # sol_data = sol_window
 
             btc_signal, btc_sma = self.getSignals("BTC", btc_data)
             eth_signal, eth_sma = self.getSignals("ETH", eth_data)
-            sol_signal, sol_sma = self.getSignals("SOL", sol_data)
+            # sol_signal, sol_sma = self.getSignals("SOL", sol_data)
 
             crypto_signals = {
                 "BTC": btc_signal,
-                "ETH": eth_signal,
-                "SOL": sol_signal
+                "ETH": eth_signal
+                # "SOL": sol_signal
             }   
 
             if crypto_holdings['BTC']['cooldown'] > 0:
@@ -170,8 +170,8 @@ class Forecast_Simulation:
             if crypto_holdings['ETH']['cooldown'] > 0:
                 crypto_holdings['ETH']['cooldown'] -= 1
 
-            if crypto_holdings['SOL']['cooldown'] > 0:
-                crypto_holdings['SOL']['cooldown'] -= 1
+            # if crypto_holdings['SOL']['cooldown'] > 0:
+            #     crypto_holdings['SOL']['cooldown'] -= 1
             
             if all(crypto['hold'] != 1 for crypto in crypto_holdings.values()):
                 # print("|")
@@ -189,10 +189,10 @@ class Forecast_Simulation:
                         crypto_price = eth_data[-1][3]
                         sma_mid, sma_long = eth_sma
                         forecast = eth_model.predict(np.array(eth_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
-                    elif crypto == "SOL":
-                        crypto_price = sol_data[-1][3]
-                        sma_mid, sma_long = sol_sma
-                        forecast = sol_model.predict(np.array(sol_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
+                    # elif crypto == "SOL":
+                    #     crypto_price = sol_data[-1][3]
+                    #     sma_mid, sma_long = sol_sma
+                    #     forecast = sol_model.predict(np.array(sol_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
 
                     min_forecast = min(forecast)
 
@@ -226,10 +226,10 @@ class Forecast_Simulation:
                     crypto_price = eth_data[-1][3]
                     sma_mid, sma_long = eth_sma
                     forecast = eth_model.predict(np.array(eth_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
-                elif crypto == "SOL":
-                    crypto_price = sol_data[-1][3]
-                    sma_mid, sma_long = sol_sma
-                    forecast = sol_model.predict(np.array(sol_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
+                # elif crypto == "SOL":
+                #     crypto_price = sol_data[-1][3]
+                #     sma_mid, sma_long = sol_sma
+                #     forecast = sol_model.predict(np.array(sol_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
 
                 max_forecast = max(forecast)
 
@@ -286,11 +286,11 @@ class Forecast_Simulation:
 
             btc_window.pop(0)
             eth_window.pop(0)
-            sol_window.pop(0)
+            # sol_window.pop(0)
 
             btc_window.append(btc[i])
             eth_window.append(eth[i])
-            sol_window.append(sol[i])
+            # sol_window.append(sol[i])
 
         print(f"Success: {success_trades}, Fail: {fail_trades}, Trades: {trades}")
         print(f"Success Rate: {success_trades/trades}")
