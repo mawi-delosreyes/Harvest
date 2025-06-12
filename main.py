@@ -42,11 +42,8 @@ class Harvest:
 
     def tradeExecution(self):
         Database(None).updateDB('Cryptocurrency', 'cooldown = GREATEST(cooldown - 1, 0)', '')
-
-        time_url = host + "openapi/v1/time"
-        server_timestamp = requests.get(time_url).json()["serverTime"]
         
-        check_hold_query = "SELECT crypto_name, hold, take_profit, break_even, stop_loss, cooldown, reach_even FROM Cryptocurrency"
+        check_hold_query = "SELECT crypto_name, hold, take_profit, break_even, stop_loss, cooldown, reach_even, reach_stoploss FROM Cryptocurrency"
         hold = Database(None).retrieveData(check_hold_query)
         crypto_holdings = {
             entry[0]: {
@@ -55,42 +52,36 @@ class Harvest:
                 'break_even': entry[3],
                 'stop_loss': entry[4],
                 'cooldown': entry[5],
-                'reach_even': entry[6]
+                'reach_even': entry[6],
+                'reach_stoploss': entry[7]
             }
             for entry in hold
         }
 
         coin_max_thresholds = {
-            'BTC': 9.0,
-            'ETH': 8.5
-            # 'SOL': 8.0
+            'BTC': 8.5,
+            'ETH': 8.0
         }
         coin_min_thresholds = {
-            'BTC': 5.3,
-            'ETH': 4.8
-            # 'SOL': 4.3
+            'BTC': 4.0,
+            'ETH': 3.5
         }
 
         eth = Harvest()
         btc = Harvest()
-        # sol = Harvest()
 
         eth_trading = threading.Thread(target=eth.getSignals, args=("ETH",))
         btc_trading = threading.Thread(target=btc.getSignals, args=("BTC",))
-        # sol_trading = threading.Thread(target=sol.getSignals, args=("SOL",))
 
         eth_trading.start()
         btc_trading.start()
-        # sol_trading.start()
 
         eth_trading.join()
         btc_trading.join()
-        # sol_trading.join()
 
         crypto_signals = {
             "BTC": btc.signal,
             "ETH": eth.signal
-            # "SOL": sol.signal
         }
 
         with open('/dev/tty8', 'w') as tty:
@@ -113,24 +104,17 @@ class Harvest:
                     sma_mid = eth.sma[0]
                     sma_long = eth.sma[1]
                     forecast = eth_model.predict(np.array(eth_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
-                # elif crypto == "SOL":
-                #     sol_data = Indicators("SOL").retrieveDatabaseData()
-                #     sol_model = joblib.load("Models/sol_model.pkl")
-                #     sma_mid = sol.sma[0]
-                #     sma_long = sol.sma[1]
-                #     forecast = sol_model.predict(np.array(sol_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
 
                 min_forecast = min(forecast)
 
-                if ((crypto_price < (min_forecast * 1.002) or (forecast[-1] - forecast[0]) / len(forecast) > 0.01) and
-                    sma_mid > sma_long and
+                if (sma_mid > sma_long and
                     coin_min_thresholds[crypto] < crypto_signals[crypto] < coin_max_thresholds[crypto]
                 ):
                     strategy = Momentum(crypto)
-                    strategy.executeBuySignal(server_timestamp)
+                    strategy.executeBuySignal(min_forecast)
                     Database(None).updateDB('Cryptocurrency', f'cooldown = {max(0, int((crypto_signals[crypto] - coin_min_thresholds[crypto]) * 2))}, reach_even = 0', f"WHERE crypto_name='{crypto}'")
 
-            elif any(crypto['hold'] == 1 for crypto in crypto_holdings.values()) and crypto_holdings[crypto]['cooldown'] == 0:
+            elif any(crypto['hold'] == 1 for crypto in crypto_holdings.values()):
                 crypto = [k for k, v in crypto_holdings.items() if v['hold'] == 1][0]
                 crypto_price = float(DataRetrieval(crypto, crypto + "PHP").getPrice(True)[4])
 
@@ -151,11 +135,6 @@ class Harvest:
                     eth_model = joblib.load("Models/eth_model.pkl")
                     sma_mid,sma_long = eth.sma
                     forecast = eth_model.predict(np.array(eth_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
-                # elif crypto == "SOL":
-                #     sol_data = Indicators("SOL").retrieveDatabaseData()
-                #     sol_model = joblib.load("Models/sol_model.pkl")
-                #     sma_mid, sma_long = sol.sma
-                #     forecast = sol_model.predict(np.array(sol_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
 
                 max_forecast = max(forecast)
 
@@ -164,18 +143,25 @@ class Harvest:
 
                 if ((crypto_holdings[crypto]['reach_even'] != 1 and crypto_price < crypto_holdings[crypto]['stop_loss']) or
                     (crypto_holdings[crypto]['reach_even'] == 1 and ((crypto_price < crypto_holdings[crypto]['break_even'] and sma_mid < sma_long) or
-                                                                     (crypto_price > crypto_holdings[crypto]['break_even']))) or
-                    (crypto_price > crypto_holdings[crypto]['take_profit'] or crypto_price > max_forecast)
+                                                                     (crypto_price > crypto_holdings[crypto]['break_even'] and (sma_mid < sma_long or 
+                                                                                                                                crypto_price > max_forecast or 
+                                                                                                                                coin_min_thresholds[crypto] > crypto_signals[crypto]))))
                 ):
+                    if crypto_holdings[crypto]['reach_stoploss'] != 1:
+                        Database(None).updateDB('Cryptocurrency', f'cooldown = 6, reach_stoploss = 1', f"WHERE crypto_name='{crypto}'")
+                    else:  
+                        strategy = Momentum(crypto)
+                        strategy.executeTPSL()
+                        
+                        with open('/dev/tty8', 'w') as tty:
+                            tty.write("\n\nExit {} at price: {:.4f}.\n\n".format(crypto, crypto_price))
+
+                elif crypto_price > crypto_holdings[crypto]['take_profit']:
                     strategy = Momentum(crypto)
-                    strategy.executeTPSL(server_timestamp)
+                    strategy.executeTPSL()
 
                     with open('/dev/tty8', 'w') as tty:
                         tty.write("\n\nExit {} at price: {:.4f}.\n\n".format(crypto, crypto_price))
-
-                    wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
-                    if wallet_info['PHP'] < 150:
-                        Database(None).updateDB('User', 'active = 0', f"WHERE user_id=1")
 
 
     def action(self):

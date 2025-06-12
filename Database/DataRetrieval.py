@@ -93,13 +93,15 @@ class DataRetrieval:
         return price
     
 
-    def getTradeFees(self, server_timestamp):
+    def getTradeFees(self):
         tradeFee_url = "openapi/v1/asset/tradeFee"
+        time_url = host + "openapi/v1/time"
+        server_timestamp = requests.get(time_url).json()["serverTime"]
 
         params = {
             "symbol": self.cryptoPair.upper(),
             "timestamp": server_timestamp,
-            "recvWindow": 10000,
+            "recvWindow": 20000,
         }
 
         tradeFee_url, api_key, params['signature'] = generateTradeSignature(tradeFee_url, params)
@@ -113,18 +115,21 @@ class DataRetrieval:
             crypto_balance = {entry['symbol']: entry for entry in data}
         except Exception as e:
             print(response.json)
-            if response.json()['msg'] == "Request ip is not in the whitelist" and response.json()['code'] == -2017:
-                with open('/dev/tty8', 'w') as tty:
-                    tty.write('Check IP. Request ip is not in the whitelist\n')    
+
+            with open('/dev/tty8', 'w') as tty:
+                tty.write(e)   
+                 
         return crypto_balance
     
 
-    def getWalletBalance(self, server_timestamp):
+    def getWalletBalance(self):
         account_url = "openapi/v1/account"
+        time_url = host + "openapi/v1/time"
+        server_timestamp = requests.get(time_url).json()["serverTime"]
 
         params = {
             "timestamp": server_timestamp,
-            'recvWindow': 10000,
+            'recvWindow': 20000,
         }
 
         account_url, api_key, params['signature'] = generateTradeSignature(account_url, params)
@@ -138,9 +143,10 @@ class DataRetrieval:
             wallet_balance = {entry['asset']: entry for entry in data['balances']}
         except Exception as e:
             print(response.json())
-            if response.json()['msg'] == "Request ip is not in the whitelist" and response.json()['code'] == -2017:
-                with open('/dev/tty8', 'w') as tty:
-                    tty.write('Check IP. Request ip is not in the whitelist\n')    
+
+            with open('/dev/tty8', 'w') as tty:
+                tty.write(e)   
+
         return wallet_balance
     
 

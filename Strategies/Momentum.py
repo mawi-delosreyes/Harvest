@@ -123,11 +123,14 @@ class Momentum:
         self.close_price = close_price
 
 
-    def executeBuySignal(self, server_timestamp):
+    def executeBuySignal(self, min_forecast):
         self.logger.info("Buy Signal Detected")
 
+        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
+
         order_url = "openapi/v1/order"
-        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
+        time_url = host + "openapi/v1/time"
+        server_timestamp = requests.get(time_url).json()["serverTime"]
 
         params = {
             "symbol": self.crypto + "PHP",
@@ -135,7 +138,7 @@ class Momentum:
             "type": "MARKET",
             "quoteOrderQty": wallet_info['PHP']['free'],
             "timestamp": server_timestamp,
-            "recvWindow": 10000,
+            "recvWindow": 20000,
         }
 
         order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
@@ -148,25 +151,31 @@ class Momentum:
             response = requests.post(order_url, params=params, headers=headers)
             self.logger.info("Order Response: {}".format(response.json()))
         except Exception as e:
-            if response.json()['msg'] == "Request ip is not in the whitelist" and response.json()['code'] == -2017:
-                with open('/dev/tty8', 'w') as tty:
-                    tty.write('Check IP. Request ip is not in the whitelist\n')    
+            with open('/dev/tty8', 'w') as tty:
+                tty.write(e)    
 
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
-        trade = response.json()['fills'][0]
+        try:
+            trade = response.json()['fills'][0]
+        except Exception as e:
+            print(e)
+            self.logger.error(e)
+            print(response.json())
+
         crypto_price = Decimal(trade['price'])
-        risk_percent = Decimal("0.005")
+        risk_percent = Decimal("0.003")
         reward_percent = Decimal("0.005")
         qty = Decimal(trade['qty'])
         php_converted_commission = Decimal(trade['commission']) * Decimal(trade['price'])
-        #total_fee_php = php_converted_commission * Decimal(2) 
-        break_even_price = crypto_price + (php_converted_commission / qty)
-        take_profit = break_even_price * (1 + reward_percent)
-        stop_loss = crypto_price * (1 - risk_percent)
+        total_fee_php = php_converted_commission * Decimal(2) 
+        
+        break_even_price = (crypto_price + (total_fee_php / qty)) + (crypto_price * risk_percent)
+        take_profit = (crypto_price + (total_fee_php / qty)) * (1 + reward_percent)
+        stop_loss = min((crypto_price * (1 - risk_percent)), min_forecast)
 
-        update_statement = "take_profit={}, stop_loss={}, break_even={}, hold=1, cooldown=2".format(take_profit, stop_loss, break_even_price)
+        update_statement = "take_profit={}, stop_loss={}, break_even={}, hold=1".format(take_profit, stop_loss, break_even_price)
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: {}, Stop Loss: {}".format(take_profit, stop_loss))
@@ -176,11 +185,15 @@ class Momentum:
             tty.write("\n\nBought {} at price: {:.4f}. TP: {:.4f} SL:{:.4f}\n\n".format(self.crypto, crypto_price, take_profit, stop_loss))
 
 
-    def executeTPSL(self, server_timestamp):
+    def executeTPSL(self):
         self.logger.info("Sell Signal Detected")
-        order_url = "openapi/v1/order"
 
-        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
+        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
+
+        order_url = "openapi/v1/order"
+        time_url = host + "openapi/v1/time"
+        server_timestamp = requests.get(time_url).json()["serverTime"]
+
         if self.crypto == "XRP":
             quantity = int(Decimal(wallet_info[self.crypto]['free']) * 100) / 100
         elif self.crypto == "BTC":
@@ -196,7 +209,7 @@ class Momentum:
             "type": "MARKET",
             "quantity": quantity,
             "timestamp": server_timestamp,
-            "recvWindow": 10000,
+            "recvWindow": 20000,
         }
 
         order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
@@ -209,15 +222,17 @@ class Momentum:
             response = requests.post(order_url, params=params, headers=headers)
             self.logger.info("Order Response: {}".format(response.json()))
         except Exception as e:
-            if response.json()['msg'] == "Request ip is not in the whitelist" and response.json()['code'] == -2017:
-                with open('/dev/tty8', 'w') as tty:
-                    tty.write('Check IP. Request ip is not in the whitelist\n')    
+            with open('/dev/tty8', 'w') as tty:
+                tty.write(e)    
 
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
-        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=3, reach_even=0"
+        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=3, reach_even=0, reach_stoploss=0"
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: 0, Stop Loss: 0")
         self.logger.info("Removed hold")
+
+        if wallet_info['PHP'] < 175:
+            Database(None).updateDB('User', 'active = 0', f"WHERE user_id=1")

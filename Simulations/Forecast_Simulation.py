@@ -79,12 +79,12 @@ class Forecast_Simulation:
 
 
     def executeBuySignal(self, crypto_price):
-        risk_percent = Decimal("0.005")
-        reward_percent = Decimal("0.0075")
+        risk_percent = Decimal("0.003")
+        reward_percent = Decimal("0.005")
         total_fee_percent = Decimal("0.006")  # 0.3% entry + 0.3% exit
 
-        break_even_price = crypto_price * (1 + total_fee_percent)
-        take_profit = break_even_price * (1 + reward_percent)
+        break_even_price = (crypto_price * (1 + (total_fee_percent+risk_percent)))
+        take_profit = (crypto_price * (1 + total_fee_percent)) * (1 + reward_percent)
         stop_loss = crypto_price * (1 - risk_percent)
 
         return take_profit, stop_loss, break_even_price
@@ -99,11 +99,9 @@ class Forecast_Simulation:
 
         btc = self.retrieveDatabaseData("BTC")
         eth = self.retrieveDatabaseData("ETH")
-        # sol = self.retrieveDatabaseData("SOL")
 
         btc_window = btc[:max_periods]
         eth_window = eth[:max_periods]
-        # sol_window = sol[:max_periods]
 
 
         crypto_holdings = {
@@ -113,6 +111,7 @@ class Forecast_Simulation:
                 'break_even': 0,
                 'stop_loss': 0,
                 'reach_even': 0,
+                'reach_stoploss': 0,
                 'cooldown': 0
             },
             "ETH": {
@@ -121,47 +120,34 @@ class Forecast_Simulation:
                 'break_even': 0,
                 'stop_loss': 0,
                 'reach_even': 0,
+                'reach_stoploss': 0,
                 'cooldown': 0
             }
-            # "SOL": {
-            #     'hold': 0,
-            #     'take_profit': 0,
-            #     'break_even': 0,
-            #     'stop_loss': 0,
-            #     'reach_even': 0,
-            #     'cooldown': 0
-            # }
         }
 
         coin_max_thresholds = {
-            'BTC': 9.0,
-            'ETH': 8.5,
-            # 'SOL': 8.0
+            'BTC': 8.5,
+            'ETH': 8.0
         }
         coin_min_thresholds = {
-            'BTC': 5.3,
-            'ETH': 4.8,
-            # 'SOL': 4.3
+            'BTC': 4.0,
+            'ETH': 3.5
         }
 
         btc_model = joblib.load("Models/btc_model.pkl")
         eth_model = joblib.load("Models/eth_model.pkl")
-        # sol_model = joblib.load("Models/sol_model.pkl")
 
         for i in range(max_periods, len(btc)):
 
             btc_data = btc_window
             eth_data = eth_window
-            # sol_data = sol_window
 
             btc_signal, btc_sma = self.getSignals("BTC", btc_data)
             eth_signal, eth_sma = self.getSignals("ETH", eth_data)
-            # sol_signal, sol_sma = self.getSignals("SOL", sol_data)
 
             crypto_signals = {
                 "BTC": btc_signal,
                 "ETH": eth_signal
-                # "SOL": sol_signal
             }   
 
             if crypto_holdings['BTC']['cooldown'] > 0:
@@ -170,8 +156,6 @@ class Forecast_Simulation:
             if crypto_holdings['ETH']['cooldown'] > 0:
                 crypto_holdings['ETH']['cooldown'] -= 1
 
-            # if crypto_holdings['SOL']['cooldown'] > 0:
-            #     crypto_holdings['SOL']['cooldown'] -= 1
             
             if all(crypto['hold'] != 1 for crypto in crypto_holdings.values()):
                 # print("|")
@@ -189,16 +173,11 @@ class Forecast_Simulation:
                         crypto_price = eth_data[-1][3]
                         sma_mid, sma_long = eth_sma
                         forecast = eth_model.predict(np.array(eth_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
-                    # elif crypto == "SOL":
-                    #     crypto_price = sol_data[-1][3]
-                    #     sma_mid, sma_long = sol_sma
-                    #     forecast = sol_model.predict(np.array(sol_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
 
                     min_forecast = min(forecast)
 
                     # Buy condition: price low, SMA trending up, signal strength within threshold, model bullish
-                    if ((crypto_price < (min_forecast * 1.002) or (forecast[-1] - forecast[0]) / len(forecast) > 0.01) and
-                        sma_mid > sma_long and
+                    if (sma_mid > sma_long and
                         coin_min_thresholds[crypto] < crypto_signals[crypto] < coin_max_thresholds[crypto]):
 
                         tp, sl, be = self.executeBuySignal(crypto_price)
@@ -207,7 +186,7 @@ class Forecast_Simulation:
                         crypto_holdings[crypto]['hold'] = 1
                         crypto_holdings[crypto]['take_profit'] = tp
                         crypto_holdings[crypto]['break_even'] = be
-                        crypto_holdings[crypto]['stop_loss'] = sl
+                        crypto_holdings[crypto]['stop_loss'] = min(sl, min_forecast)
                         crypto_holdings[crypto]['cooldown'] = max(0, int((crypto_signals[crypto] - coin_min_thresholds[crypto]) * 2))
 
                         # print(f"|- BUY {crypto}: Price: {crypto_price}, TP: {tp}, BE: {be}, SL: {sl}")
@@ -226,10 +205,6 @@ class Forecast_Simulation:
                     crypto_price = eth_data[-1][3]
                     sma_mid, sma_long = eth_sma
                     forecast = eth_model.predict(np.array(eth_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
-                # elif crypto == "SOL":
-                #     crypto_price = sol_data[-1][3]
-                #     sma_mid, sma_long = sol_sma
-                #     forecast = sol_model.predict(np.array(sol_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
 
                 max_forecast = max(forecast)
 
@@ -238,20 +213,11 @@ class Forecast_Simulation:
                 if crypto_holdings[crypto]['reach_even'] == 0 and crypto_price >= crypto_holdings[crypto]['break_even']:
                     crypto_holdings[crypto]['reach_even'] = 1
 
-                # Evaluate exit: TP or SL
+                # Stop Loss
                 if crypto_holdings[crypto]['reach_even'] != 1 and crypto_price < crypto_holdings[crypto]['stop_loss']:
                     # print(f"|- SELL (Loss) {crypto}: Price: {crypto_price}, SL Hit")
                     
-                    fail_trades += 1
-                    crypto_holdings[crypto]['hold'] = 0
-                    crypto_holdings[crypto]['cooldown'] = 3
-                    crypto_holdings[crypto]['take_profit'] = 0
-                    crypto_holdings[crypto]['break_even'] = 0
-                    crypto_holdings[crypto]['stop_loss'] = 0
-                    crypto_holdings[crypto]['reach_even'] = 0
-
-                elif crypto_holdings[crypto]['reach_even'] == 1:
-                    if crypto_price < crypto_holdings[crypto]['break_even'] and sma_mid < sma_long:
+                    if crypto_holdings[crypto]['reach_stoploss'] == 1:
                         fail_trades += 1
                         crypto_holdings[crypto]['hold'] = 0
                         crypto_holdings[crypto]['cooldown'] = 3
@@ -259,10 +225,35 @@ class Forecast_Simulation:
                         crypto_holdings[crypto]['break_even'] = 0
                         crypto_holdings[crypto]['stop_loss'] = 0
                         crypto_holdings[crypto]['reach_even'] = 0
-                    elif crypto_price > crypto_holdings[crypto]['break_even']*Decimal(1.004):
+                        crypto_holdings[crypto]['reach_stoploss'] = 0
+                    else:
+                        crypto_holdings[crypto]['cooldown'] = 6
+                        crypto_holdings[crypto]['reach_stoploss'] = 1
+
+                # Reach Even
+                elif crypto_holdings[crypto]['reach_even'] == 1:
+                    # stop loss
+                    if crypto_price < crypto_holdings[crypto]['break_even'] and sma_mid < sma_long:
+                        if crypto_holdings[crypto]['reach_stoploss'] == 1:
+                            # print(f"|- SELL (Loss) {crypto}: Price: {crypto_price}, BE Hit")
+                            fail_trades += 1
+                            crypto_holdings[crypto]['hold'] = 0
+                            crypto_holdings[crypto]['cooldown'] = 3
+                            crypto_holdings[crypto]['take_profit'] = 0
+                            crypto_holdings[crypto]['break_even'] = 0
+                            crypto_holdings[crypto]['stop_loss'] = 0
+                            crypto_holdings[crypto]['reach_even'] = 0
+                            crypto_holdings[crypto]['reach_stoploss'] = 0
+                        else:
+                            crypto_holdings[crypto]['cooldown'] = 3
+                            crypto_holdings[crypto]['reach_stoploss'] = 1  
+
+                    # break even
+                    elif crypto_price > crypto_holdings[crypto]['break_even']:
                         if (sma_mid < sma_long or crypto_price > max_forecast or 
                             coin_min_thresholds[crypto] > crypto_signals[crypto] 
                             ):
+                            # print(f"|- SELL (Win) {crypto}: Price: {crypto_price}, BE Hit")
                             success_trades += 1
                             crypto_holdings[crypto]['hold'] = 0
                             crypto_holdings[crypto]['cooldown'] = 3
@@ -270,9 +261,9 @@ class Forecast_Simulation:
                             crypto_holdings[crypto]['break_even'] = 0
                             crypto_holdings[crypto]['stop_loss'] = 0
                             crypto_holdings[crypto]['reach_even'] = 0  
-                    
+                            crypto_holdings[crypto]['reach_stoploss'] = 0
 
-                elif crypto_price > crypto_holdings[crypto]['take_profit'] or crypto_price > max_forecast:
+                elif crypto_price > crypto_holdings[crypto]['take_profit']:
                     # print(f"|- SELL (Win) {crypto}: Price: {crypto_price}, TP Hit")
 
                     success_trades += 1
@@ -282,15 +273,14 @@ class Forecast_Simulation:
                     crypto_holdings[crypto]['break_even'] = 0
                     crypto_holdings[crypto]['stop_loss'] = 0
                     crypto_holdings[crypto]['reach_even'] = 0    
+                    crypto_holdings[crypto]['reach_stoploss'] = 0
 
 
             btc_window.pop(0)
             eth_window.pop(0)
-            # sol_window.pop(0)
 
             btc_window.append(btc[i])
             eth_window.append(eth[i])
-            # sol_window.append(sol[i])
 
         print(f"Success: {success_trades}, Fail: {fail_trades}, Trades: {trades}")
         print(f"Success Rate: {success_trades/trades}")
