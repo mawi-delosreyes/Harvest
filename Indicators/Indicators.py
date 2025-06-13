@@ -19,41 +19,44 @@ class Indicators:
     def __init__(self, crypto):
         self.logger = Logger(crypto)
         self.crypto = crypto
-        self.sma_short_period = 5
-        self.sma_mid_period = 15
-        self.sma_long_period = 30
-        self.macd_fast_period = 6
-        self.macd_slow_period = 21
-        self.macd_signal_line_period = 5
-        self.adx_period = 14
-        self.bb_period = 20
+        self.sma_short_period = 3
+        self.sma_mid_period = 9
+        self.sma_long_period = 20
+        self.macd_fast_period = 3
+        self.macd_slow_period = 10
+        self.macd_signal_line_period = 3
+        self.adx_period = 9
+        self.bb_period = 14
         self.bb_std_dev = 2.0
-        self.kijun_sen_period = 20
-        self.rsi_period = 12
+        self.kijun_sen_period = 13
+        self.rsi_period = 8
         self.forecast_period = 50
         self.rows = max(self.sma_short_period, self.sma_mid_period, self.sma_long_period, self.macd_fast_period, self.macd_slow_period, 
                         self.macd_signal_line_period, self.adx_period, self.bb_period, self.kijun_sen_period, self.rsi_period, self.forecast_period)
         self.latest_crypto_data = None
 
 
-    def retrieveDatabaseData(self):
+    def retrieveDatabaseData(self, interval):
 
         col_names = "crypto.id, crypto.open_timestamp, crypto.open, crypto.high, crypto.low, crypto.close, crypto.volume"
 
         select_crypto_data_query = "SELECT * FROM ("
-        select_crypto_data_query += "SELECT %s FROM %s AS crypto " % (col_names, self.crypto) 
+        if interval == "1m":
+            select_crypto_data_query += "SELECT %s FROM %s AS crypto " % (col_names, self.crypto + "_1") 
+        elif interval == "5m":
+            select_crypto_data_query += "SELECT %s FROM %s AS crypto " % (col_names, self.crypto + "_5") 
         select_crypto_data_query += "ORDER BY crypto.id DESC LIMIT %s" % (self.rows) 
         select_crypto_data_query += ") AS crypto_data ORDER BY crypto_data.open_timestamp ASC"
 
         return Database(self.crypto).retrieveData(select_crypto_data_query)
 
 
-    def runIndicators(self):
+    def runIndicators(self, interval):
         num_data = max(self.sma_short_period, self.sma_mid_period, self.sma_long_period, self.macd_fast_period, self.macd_slow_period, 
                         self.macd_signal_line_period, self.adx_period, self.bb_period, self.kijun_sen_period, self.rsi_period, self.forecast_period)
 
         try:
-            self.latest_crypto_data = self.retrieveDatabaseData()
+            self.latest_crypto_data = self.retrieveDatabaseData(interval)
         except Exception as e:
             self.logger.error(e)
 
@@ -70,7 +73,7 @@ class Indicators:
         close = list(close)
         volume = list(volume)
 
-        latest_data = DataRetrieval(self.crypto, self.crypto + "PHP").getPrice(True)
+        latest_data = DataRetrieval(self.crypto, self.crypto + "PHP").getPrice(True, "1m")
         open.append(Decimal(latest_data[1]))
         high.append(Decimal(latest_data[2]))
         low.append(Decimal(latest_data[3]))

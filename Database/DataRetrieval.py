@@ -8,7 +8,6 @@ from Coins.constants import host
 class DataRetrieval:
     def __init__(self, crypto, cryptoPair):
         self.crypto = crypto
-        self.interval = "5m"
         if crypto is not None:
             self.logger = Logger(crypto)
             self.cryptoPair = cryptoPair.lower()
@@ -16,22 +15,28 @@ class DataRetrieval:
             self.logger = Logger("Harvest")
             self.cryptoPair = None
 
-    def saveDelayedData(self, last_timestamp):
+    def saveDelayedData(self, last_timestamp, interval):
         
         prices_url = host + "openapi/quote/v1/klines"
         time_url = host + "openapi/v1/time"
 
         start_milliseconds = int(last_timestamp.timestamp() * 1000)
-        server_timestamp = requests.get(time_url).json()["serverTime"] - (5 * 60 * 1000)
+        if interval == "1m":
+            server_timestamp = requests.get(time_url).json()["serverTime"] - (1 * 60 * 1000)
+        elif interval == "5m":
+            server_timestamp = requests.get(time_url).json()["serverTime"] - (5 * 60 * 1000)
+    
         params = {
             "symbol": self.cryptoPair,
-            "interval": self.interval,
+            "interval": interval,
             "startTime": start_milliseconds,
-            "endTime": server_timestamp
+            "endTime": server_timestamp,
+            "limit": 150
         }
 
         response = requests.get(prices_url, params=params)
         data = response.json()
+        data = sorted(data, key=lambda x: x[0])
         for i in data:
             open_timestamp = datetime.fromtimestamp(i[0]/1000.0)
             open = i[1]
@@ -46,17 +51,19 @@ class DataRetrieval:
             crypto_columns = "(open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)"
             crypto_data_value = (open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)
 
-            Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
+            if interval == "1m":
+                Database(self.crypto).saveDB(self.crypto, self.crypto + "_1", crypto_columns, crypto_data_value)
+            elif interval == "5m":
+                Database(self.crypto).saveDB(self.crypto, self.crypto + "_5", crypto_columns, crypto_data_value)
 
-
-    def getPrice(self, not_db_price=False):
+    def getPrice(self, not_db_price=False, interval="1m"):
         prices_url = host + "openapi/quote/v1/klines"
         time_url = host + "openapi/v1/time"
         server_timestamp = requests.get(time_url).json()["serverTime"]
 
         params = {
             "symbol": self.cryptoPair,
-            "interval": self.interval,
+            "interval": interval,
             "limit": 2,
             "startTime": server_timestamp
         }
@@ -167,13 +174,16 @@ class DataRetrieval:
         Database(self.crypto).saveDB(self.crypto, "Daily_Balance", balance_columns, balance_value)
 
 
-    def saveCryptoData(self):
-        open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades = self.getPrice(False)
+    def saveCryptoData(self, interval):
+        open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades = self.getPrice(False, interval)
         crypto_columns = "(open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)"
         crypto_data_value = (open_timestamp, open, high, low, close, volume, close_timestamp, quote_asset_volume, num_trades)
         
         try:
-            Database(self.crypto).saveDB(self.crypto, self.crypto, crypto_columns, crypto_data_value)
+            if interval == "1m":
+                Database(self.crypto).saveDB(self.crypto, self.crypto + "_1", crypto_columns, crypto_data_value)
+            elif interval == "5m":
+                Database(self.crypto).saveDB(self.crypto, self.crypto + "_5", crypto_columns, crypto_data_value)
         except Exception as e:
             self.logger.error(e)
             

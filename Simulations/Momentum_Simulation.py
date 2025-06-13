@@ -9,7 +9,7 @@ class Momentum_Simulation:
     def retrieveDatabaseData(self, crypto):
         col_names = "crypto.open, crypto.high, crypto.low, crypto.close, crypto.volume"
 
-        select_crypto_data_query = "SELECT %s FROM %s AS crypto " % (col_names, crypto) 
+        select_crypto_data_query = "SELECT %s FROM %s AS crypto " % (col_names, crypto + "_1") 
         select_crypto_data_query += "ORDER BY crypto.id ASC"
 
         return Database(crypto).retrieveData(select_crypto_data_query)

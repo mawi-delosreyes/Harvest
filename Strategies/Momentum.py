@@ -56,14 +56,14 @@ class Momentum:
             self.r3, self.s3, self.rsi, self.close_price)
 
             weights = {
-                'SMA': 0.8,
-                'MACD': 1.3,
-                'ADX': 1.6,
-                'BollingerBand': 1.0,
-                'Kijun': 1.8,
-                'OBV': 1.5,
-                'RSI': 1.0,
-                'PivotPoint': 0.5
+                'SMA': 1.2,
+                'MACD': 1.5,
+                'ADX': 0.6,
+                'BollingerBand': 1.4,
+                'Kijun': 1.0,
+                'OBV': 0.5,
+                'RSI': 1.6,
+                'PivotPoint': 0.2
             }
 
             indicator_signal = sum([
@@ -92,9 +92,9 @@ class Momentum:
         return indicator_signal, (self.sma_mid, self.sma_long) 
 
 
-    def retrieveData(self):
+    def retrieveData(self, interval):
 
-        sma, macd, adx, bb, kijun, obv, pp, rsi, close_price  = Indicators(self.crypto).runIndicators()
+        sma, macd, adx, bb, kijun, obv, pp, rsi, close_price  = Indicators(self.crypto).runIndicators(interval)
         self.sma_short = sma[0]
         self.sma_mid = sma[0]
         self.sma_long = sma[1]
@@ -171,7 +171,7 @@ class Momentum:
         php_converted_commission = Decimal(trade['commission']) * Decimal(trade['price'])
         total_fee_php = php_converted_commission * Decimal(2) 
         
-        break_even_price = (crypto_price + (total_fee_php / qty)) + (crypto_price * risk_percent)
+        break_even_price = (crypto_price + (total_fee_php / qty))
         take_profit = (crypto_price + (total_fee_php / qty)) * (1 + reward_percent)
         stop_loss = min((crypto_price * (1 - risk_percent)), min_forecast)
 
@@ -228,11 +228,11 @@ class Momentum:
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
-        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=3, reach_even=0, reach_stoploss=0"
+        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=15, reach_even=0, reach_stoploss=0"
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: 0, Stop Loss: 0")
         self.logger.info("Removed hold")
 
-        if wallet_info['PHP'] < 175:
-            Database(None).updateDB('User', 'active = 0', f"WHERE user_id=1")
+        if float(wallet_info['PHP']['free']) < float(155.0):
+            Database(None).updateDB('User', 'active = 0', "WHERE user_id=1")
