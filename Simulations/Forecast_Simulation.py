@@ -178,8 +178,7 @@ class Forecast_Simulation:
 
                     # Buy condition: price low, SMA trending up, signal strength within threshold, model bullish
                     if (sma_mid > sma_long and
-                        coin_min_thresholds[crypto] < crypto_signals[crypto] < coin_max_thresholds[crypto] and
-                        forecast[-1] > forecast[0]
+                        coin_min_thresholds[crypto] < crypto_signals[crypto] < coin_max_thresholds[crypto]
                         ):
 
                         tp, sl, be = self.executeBuySignal(crypto_price)
