@@ -36,7 +36,7 @@ class Indicator_Simulation:
 
     def runIndicators(self):
         min_data = max(self.sma_short_period, self.sma_mid_period, self.sma_long_period, self.macd_fast_period, self.macd_slow_period, 
-                        self.macd_signal_line_period, self.adx_period, self.bb_period, self.kijun_sen_period, self.rsi_period, 50)
+                        self.macd_signal_line_period, self.adx_period, self.bb_period, self.kijun_sen_period, self.rsi_period, 60)
 
         if not self.latest_crypto_data or len(self.latest_crypto_data) < min_data: 
             self.logger.error("Not enough data")

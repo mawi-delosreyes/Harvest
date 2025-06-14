@@ -94,8 +94,8 @@ class Forecast_Simulation:
         success_trades = 0
         fail_trades = 0
         trades = 0
-        max_periods = 50
-        n_lags = 50 
+        max_periods = 60
+        n_lags = 60 
 
         btc = self.retrieveDatabaseData("BTC")
         eth = self.retrieveDatabaseData("ETH")
@@ -168,17 +168,19 @@ class Forecast_Simulation:
                     if crypto == "BTC":
                         crypto_price = btc_data[-1][3]
                         sma_mid, sma_long = btc_sma
-                        forecast = btc_model.predict(np.array(btc_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
+                        forecast = btc_model.predict(np.array(btc_data)[:, [0, 1, 2, 4]]) * 1e6
                     elif crypto == "ETH":
                         crypto_price = eth_data[-1][3]
                         sma_mid, sma_long = eth_sma
-                        forecast = eth_model.predict(np.array(eth_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
+                        forecast = eth_model.predict(np.array(eth_data)[:, [0, 1, 2, 4]]) * 1e6
 
                     min_forecast = min(forecast)
 
                     # Buy condition: price low, SMA trending up, signal strength within threshold, model bullish
                     if (sma_mid > sma_long and
-                        coin_min_thresholds[crypto] < crypto_signals[crypto] < coin_max_thresholds[crypto]):
+                        coin_min_thresholds[crypto] < crypto_signals[crypto] < coin_max_thresholds[crypto] and
+                        forecast[-1] > forecast[0]
+                        ):
 
                         tp, sl, be = self.executeBuySignal(crypto_price)
 
@@ -202,13 +204,13 @@ class Forecast_Simulation:
                     crypto_high = btc_data[-1][1]
                     crypto_low = btc_data[-1][2]
                     sma_mid, sma_long = btc_sma
-                    forecast = btc_model.predict(np.array(btc_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
+                    forecast = btc_model.predict(np.array(btc_data)[:, [0, 1, 2, 4]]) * 1e6
                 elif crypto == "ETH":
                     crypto_price = eth_data[-1][3]
                     crypto_high = btc_data[-1][1]
                     crypto_low = btc_data[-1][2]
                     sma_mid, sma_long = eth_sma
-                    forecast = eth_model.predict(np.array(eth_data[-n_lags:])[:, [0, 1, 2, 4]]) * 1e6
+                    forecast = eth_model.predict(np.array(eth_data)[:, [0, 1, 2, 4]]) * 1e6
 
                 max_forecast = max(forecast)
 

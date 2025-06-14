@@ -30,7 +30,7 @@ class Indicators:
         self.bb_std_dev = 2.0
         self.kijun_sen_period = 13
         self.rsi_period = 8
-        self.forecast_period = 50
+        self.forecast_period = 60
         self.rows = max(self.sma_short_period, self.sma_mid_period, self.sma_long_period, self.macd_fast_period, self.macd_slow_period, 
                         self.macd_signal_line_period, self.adx_period, self.bb_period, self.kijun_sen_period, self.rsi_period, self.forecast_period)
         self.latest_crypto_data = None
