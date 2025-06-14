@@ -103,12 +103,12 @@ class Harvest:
                 crypto_price = float(DataRetrieval(crypto, crypto + "PHP").getPrice(True, "1m")[4])
 
                 if crypto == "BTC":
-                    btc_data = Indicators("BTC").retrieveDatabaseData()
+                    btc_data = Indicators("BTC").retrieveDatabaseData("1m")
                     btc_model = joblib.load("Models/btc_model.pkl")
                     sma_mid, sma_long = btc.sma
                     forecast = btc_model.predict(np.array(btc_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
                 elif crypto == "ETH":
-                    eth_data = Indicators("ETH").retrieveDatabaseData()
+                    eth_data = Indicators("ETH").retrieveDatabaseData("1m")
                     eth_model = joblib.load("Models/eth_model.pkl")
                     sma_mid = eth.sma[0]
                     sma_long = eth.sma[1]
@@ -137,12 +137,12 @@ class Harvest:
                     tty.write("\n")
 
                 if crypto == "BTC":
-                    btc_data = Indicators("BTC").retrieveDatabaseData()
+                    btc_data = Indicators("BTC").retrieveDatabaseData("1m")
                     btc_model = joblib.load("Models/btc_model.pkl")
                     sma_mid, sma_long = btc.sma
                     forecast = btc_model.predict(np.array(btc_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
                 elif crypto == "ETH":
-                    eth_data = Indicators("ETH").retrieveDatabaseData()
+                    eth_data = Indicators("ETH").retrieveDatabaseData("1m")
                     eth_model = joblib.load("Models/eth_model.pkl")
                     sma_mid,sma_long = eth.sma
                     forecast = eth_model.predict(np.array(eth_data[-50:])[:, [2, 3, 4, 6]]) * 1e6
