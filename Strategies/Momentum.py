@@ -234,5 +234,7 @@ class Momentum:
         self.logger.info("Updated Take Profit: 0, Stop Loss: 0")
         self.logger.info("Removed hold")
 
-        if float(wallet_info['PHP']['free']) < float(155.0):
+
+        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
+        if float(wallet_info['PHP']['free']) < float(150.0):
             Database(None).updateDB('User', 'active = 0', "WHERE user_id=1")

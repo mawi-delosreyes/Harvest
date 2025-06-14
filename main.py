@@ -66,8 +66,8 @@ class Harvest:
             'ETH': 7.5
         }
         coin_min_thresholds = {
-            'BTC': 5.6,
-            'ETH': 5.4
+            'BTC': 6.6,
+            'ETH': 6.4
         }
 
         eth = Harvest()
@@ -124,7 +124,7 @@ class Harvest:
                 ):
                     strategy = Momentum(crypto)
                     strategy.executeBuySignal(min_forecast)
-                    Database(None).updateDB('Cryptocurrency', f'cooldown = {max(0, int((crypto_signals[crypto] - coin_min_thresholds[crypto]) * 2))}, reach_even = 0', f"WHERE crypto_name='{crypto}'")
+                    Database(None).updateDB('Cryptocurrency', f'cooldown = {max(0, int((crypto_signals[crypto] - coin_min_thresholds[crypto]) * 5))}, reach_even = 0', f"WHERE crypto_name='{crypto}'")
 
             ### Exit ###
             elif any(crypto_hold['hold'] == 1 for crypto_hold in crypto_holdings.values()):
@@ -149,13 +149,18 @@ class Harvest:
                         tty.write("\n")
 
                     if crypto_holdings[crypto]['reach_stoploss'] == 0 and crypto_low < crypto_holdings[crypto]['stop_loss']:
-                        Database(None).updateDB('Cryptocurrency', 'cooldown = 60, reach_stoploss = 1', f"WHERE crypto_name='{crypto}'")
+                        new_stoploss = Decimal(crypto_holdings[crypto]['stop_loss']) * Decimal('0.9997')
+                        Database(None).updateDB('Cryptocurrency', f'stop_loss = {new_stoploss}, reach_stoploss = 1', f"WHERE crypto_name='{crypto}'")
                         crypto_holdings[crypto]['reach_stoploss'] = 1
-                        crypto_holdings[crypto]['cooldown'] = 60
+                        crypto_holdings[crypto]['stop_loss'] = new_stoploss
 
-                    if crypto_holdings[crypto]['reach_even'] == 0 and crypto_high >= crypto_holdings[crypto]['break_even']:
-                        Database(None).updateDB('Cryptocurrency', 'reach_even = 1', f"WHERE crypto_name='{crypto}'")
+                    if crypto_high > crypto_holdings[crypto]['break_even']:
+                        new_stoploss = crypto_holdings[crypto]['break_even']
+                        new_breakeven = crypto_holdings[crypto]['break_even'] * Decimal('1.003')
+                        Database(None).updateDB('Cryptocurrency', f"stop_loss={new_stoploss}, break_even={new_breakeven}, reach_even = 1", f"WHERE crypto_name='{crypto}'")
                         crypto_holdings[crypto]['reach_even'] = 1
+                        crypto_holdings[crypto]['break_even'] = new_breakeven
+                        crypto_holdings[crypto]['stop_loss'] = new_stoploss
 
                     if crypto_holdings[crypto]['cooldown'] == 0:
 
@@ -169,15 +174,8 @@ class Harvest:
                             eth_model = joblib.load("Models/eth_model.pkl")
                             sma_mid,sma_long = eth.sma
                             forecast = eth_model.predict(np.array(eth_data)[:, [2, 3, 4, 6]]) * 1e6
-
-                        max_forecast = max(forecast)
                     
-                        if (((crypto_holdings[crypto]['reach_even'] != 1 and crypto_price < crypto_holdings[crypto]['stop_loss']) or
-                            (crypto_holdings[crypto]['reach_even'] == 1 and ((crypto_price < crypto_holdings[crypto]['break_even'] and sma_mid < sma_long) or
-                                                                            (crypto_price > crypto_holdings[crypto]['break_even'] and (sma_mid < sma_long or 
-                                                                                                                                        crypto_price > max_forecast or 
-                                                                                                                                        coin_min_thresholds[crypto] > crypto_signals[crypto])))))
-                        ):  
+                        if crypto_price < crypto_holdings[crypto]['stop_loss']:  
                             strategy = Momentum(crypto)
                             strategy.executeTPSL()
                         
