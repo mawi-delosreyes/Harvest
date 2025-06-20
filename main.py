@@ -62,29 +62,29 @@ class Harvest:
         }
 
         coin_max_thresholds = {
-            'BTC': 9.0,
-            'ETH': 7.5
+            'BTC': 9.5,
+            # 'ETH': 7.5
         }
         coin_min_thresholds = {
-            'BTC': 6.6,
-            'ETH': 6.4
+            'BTC': 6.0,
+            # 'ETH': 5.4
         }
 
-        eth = Harvest()
+        # eth = Harvest()
         btc = Harvest()
 
-        eth_trading = threading.Thread(target=eth.getSignals, args=("ETH", '1m'))
+        # eth_trading = threading.Thread(target=eth.getSignals, args=("ETH", '1m'))
         btc_trading = threading.Thread(target=btc.getSignals, args=("BTC", '1m'))
 
-        eth_trading.start()
+        # eth_trading.start()
         btc_trading.start()
 
-        eth_trading.join()
+        # eth_trading.join()
         btc_trading.join()
 
         crypto_signals = {
             "BTC": btc.signal,
-            "ETH": eth.signal
+            # "ETH": eth.signal
         }
 
         with open('/dev/tty8', 'w') as tty:
@@ -110,20 +110,21 @@ class Harvest:
                     btc_model = joblib.load("Models/btc_model.pkl")
                     sma_mid, sma_long = btc.sma
                     forecast = btc_model.predict(np.array(btc_data)[:, [2, 3, 4, 6]]) * 1e6
-                elif crypto == "ETH":
-                    eth_data = Indicators("ETH").retrieveDatabaseData("1m")
-                    eth_model = joblib.load("Models/eth_model.pkl")
-                    sma_mid = eth.sma[0]
-                    sma_long = eth.sma[1]
-                    forecast = eth_model.predict(np.array(eth_data)[:, [2, 3, 4, 6]]) * 1e6
+                # elif crypto == "ETH":
+                #     eth_data = Indicators("ETH").retrieveDatabaseData("1m")
+                #     eth_model = joblib.load("Models/eth_model.pkl")
+                #     sma_mid = eth.sma[0]
+                #     sma_long = eth.sma[1]
+                #     forecast = eth_model.predict(np.array(eth_data)[:, [2, 3, 4, 6]]) * 1e6
 
                 min_forecast = min(forecast)
+                max_forecast = max(forecast)
 
                 if (sma_mid > sma_long and
                     coin_min_thresholds[crypto] < crypto_signals[crypto] < coin_max_thresholds[crypto]
                 ):
                     strategy = Momentum(crypto)
-                    strategy.executeBuySignal(min_forecast)
+                    strategy.executeBuySignal(min_forecast, max_forecast)
                     Database(None).updateDB('Cryptocurrency', f'cooldown = {max(0, int((crypto_signals[crypto] - coin_min_thresholds[crypto]) * 5))}, reach_even = 0', f"WHERE crypto_name='{crypto}'")
 
             ### Exit ###
@@ -149,18 +150,20 @@ class Harvest:
                         tty.write("\n")
 
                     if crypto_holdings[crypto]['reach_stoploss'] == 0 and crypto_low < crypto_holdings[crypto]['stop_loss']:
-                        new_stoploss = Decimal(crypto_holdings[crypto]['stop_loss']) * Decimal('0.9997')
-                        Database(None).updateDB('Cryptocurrency', f'stop_loss = {new_stoploss}, reach_stoploss = 1', f"WHERE crypto_name='{crypto}'")
+                        new_stoploss = Decimal(crypto_holdings[crypto]['stop_loss']) * Decimal('0.9995')
+                        Database(None).updateDB('Cryptocurrency', f'stop_loss = {new_stoploss}, reach_stoploss = 1, cooldown = 60', f"WHERE crypto_name='{crypto}'")
                         crypto_holdings[crypto]['reach_stoploss'] = 1
                         crypto_holdings[crypto]['stop_loss'] = new_stoploss
+                        crypto_holdings[crypto]['cooldown'] = 60
 
                     if crypto_high > crypto_holdings[crypto]['break_even']:
                         new_stoploss = crypto_holdings[crypto]['break_even']
-                        new_breakeven = crypto_holdings[crypto]['break_even'] * Decimal('1.003')
-                        Database(None).updateDB('Cryptocurrency', f"stop_loss={new_stoploss}, break_even={new_breakeven}, reach_even = 1", f"WHERE crypto_name='{crypto}'")
+                        new_breakeven = crypto_holdings[crypto]['break_even'] * Decimal('1.0008')
+                        Database(None).updateDB('Cryptocurrency', f"stop_loss={new_stoploss}, break_even={new_breakeven}, reach_even = 1, cooldown = 0", f"WHERE crypto_name='{crypto}'")
                         crypto_holdings[crypto]['reach_even'] = 1
                         crypto_holdings[crypto]['break_even'] = new_breakeven
                         crypto_holdings[crypto]['stop_loss'] = new_stoploss
+                        crypto_holdings[crypto]['cooldown'] = 0
 
                     if crypto_holdings[crypto]['cooldown'] == 0:
 
@@ -169,11 +172,11 @@ class Harvest:
                             btc_model = joblib.load("Models/btc_model.pkl")
                             sma_mid, sma_long = btc.sma
                             forecast = btc_model.predict(np.array(btc_data)[:, [2, 3, 4, 6]]) * 1e6
-                        elif crypto == "ETH":
-                            eth_data = Indicators("ETH").retrieveDatabaseData("1m")
-                            eth_model = joblib.load("Models/eth_model.pkl")
-                            sma_mid,sma_long = eth.sma
-                            forecast = eth_model.predict(np.array(eth_data)[:, [2, 3, 4, 6]]) * 1e6
+                        # elif crypto == "ETH":
+                        #     eth_data = Indicators("ETH").retrieveDatabaseData("1m")
+                        #     eth_model = joblib.load("Models/eth_model.pkl")
+                        #     sma_mid,sma_long = eth.sma
+                        #     forecast = eth_model.predict(np.array(eth_data)[:, [2, 3, 4, 6]]) * 1e6
                     
                         if crypto_price < crypto_holdings[crypto]['stop_loss']:  
                             strategy = Momentum(crypto)

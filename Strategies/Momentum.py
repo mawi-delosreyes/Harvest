@@ -123,7 +123,7 @@ class Momentum:
         self.close_price = close_price
 
 
-    def executeBuySignal(self, min_forecast):
+    def executeBuySignal(self, min_forecast, max_forecast):
         self.logger.info("Buy Signal Detected")
 
         wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
@@ -172,7 +172,7 @@ class Momentum:
         total_fee_php = php_converted_commission * Decimal(2) 
         
         break_even_price = (crypto_price + (total_fee_php / qty))
-        take_profit = (crypto_price + (total_fee_php / qty)) * (1 + reward_percent)
+        take_profit = max(((crypto_price + (total_fee_php / qty)) * (1 + reward_percent)), max_forecast)
         stop_loss = min((crypto_price * (1 - risk_percent)), min_forecast)
 
         update_statement = "take_profit={}, stop_loss={}, break_even={}, hold=1".format(take_profit, stop_loss, break_even_price)
