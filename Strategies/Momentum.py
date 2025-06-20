@@ -37,36 +37,33 @@ class Momentum:
         self.r3 = None
         self.s3 = None
         self.rsi = None
-        self.forecast_start = None
-        self.forecast_end = None
         self.close_price = None
         self.logger = Logger(crypto)
 
 
     def checkSignals(self):
         indicator_signal = 0
-        forecast_signal = 0
+
         if all(value is not None for value in [
             self.sma_short, self.sma_mid, self.sma_long, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
             self.plus_di, self.minus_di, self.adx, self.upper_band, self.bb_sma, self.lower_band,
             self.kijun, self.obv, self.obv_prev, self.pivot, self.r1, self.s1, self.r2, self.s2,
-            self.r3, self.s3, self.rsi, self.close_price, self.forecast_start, self.forecast_end
+            self.r3, self.s3, self.rsi, self.close_price
         ]):
             indicator_signals = Signals(self.sma_short, self.sma_mid, self.sma_long, self.ema_fast, self.ema_slow, self.macd, self.signal_line,
             self.plus_di, self.minus_di, self.adx, self.upper_band, self.bb_sma, self.lower_band,
             self.kijun, self.obv, self.obv_prev, self.pivot, self.r1, self.s1, self.r2, self.s2,
-            self.r3, self.s3, self.rsi, self.close_price, self.forecast_start, self.forecast_end)
+            self.r3, self.s3, self.rsi, self.close_price)
 
             weights = {
-                'SMA': 1,
-                'MACD': 2,
-                'ADX': 1.5,
-                'BollingerBand': 0.3,
-                'Kijun': 1,
-                'OBV': 0.2,
-                'RSI': 1.5,
-                'PivotPoint': 1,
-                'Forecast': 2.5
+                'SMA': 1.2,
+                'MACD': 1.5,
+                'ADX': 0.6,
+                'BollingerBand': 1.4,
+                'Kijun': 1.0,
+                'OBV': 0.5,
+                'RSI': 1.6,
+                'PivotPoint': 0.2
             }
 
             indicator_signal = sum([
@@ -77,8 +74,7 @@ class Momentum:
                 indicator_signals.Kijun() * weights['Kijun'], 
                 indicator_signals.OBV() * weights['OBV'], 
                 indicator_signals.RSI() * weights['RSI'], 
-                indicator_signals.PivotPoint() * weights['PivotPoint'], 
-                indicator_signals.Forecast() * weights['Forecast']
+                indicator_signals.PivotPoint() * weights['PivotPoint']
             ])
 
             indicator_signal = float(Decimal(indicator_signal).quantize(Decimal('1.' + '0'*2), rounding=ROUND_HALF_UP))
@@ -91,16 +87,14 @@ class Momentum:
             self.logger.info(f"OBV Signal: {indicator_signals.OBV()}")
             self.logger.info(f"RSI Signal: {indicator_signals.RSI()}")
             self.logger.info(f"Pivot Point Signal: {indicator_signals.PivotPoint()}")
-            self.logger.info(f"Forecast Signal: {indicator_signals.Forecast()}")
             self.logger.info(f"Total Points: {indicator_signal}")
 
-            forecast_signal = indicator_signals.Forecast()
-        return (indicator_signal, forecast_signal), (self.sma_mid, self.sma_long) 
+        return indicator_signal, (self.sma_mid, self.sma_long) 
 
 
-    def retrieveData(self):
+    def retrieveData(self, interval):
 
-        sma, macd, adx, bb, kijun, obv, pp, rsi, close_price, forecast  = Indicators(self.crypto).runIndicators()
+        sma, macd, adx, bb, kijun, obv, pp, rsi, close_price  = Indicators(self.crypto).runIndicators(interval)
         self.sma_short = sma[0]
         self.sma_mid = sma[0]
         self.sma_long = sma[1]
@@ -127,15 +121,16 @@ class Momentum:
         self.s3 = pp[6]
         self.rsi = rsi
         self.close_price = close_price
-        self.forecast_start = forecast[0]
-        self.forecast_end = forecast[1]
 
 
-    def executeBuySignal(self, server_timestamp):
+    def executeBuySignal(self, min_forecast, max_forecast):
         self.logger.info("Buy Signal Detected")
 
+        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
+
         order_url = "openapi/v1/order"
-        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
+        time_url = host + "openapi/v1/time"
+        server_timestamp = requests.get(time_url).json()["serverTime"]
 
         params = {
             "symbol": self.crypto + "PHP",
@@ -143,7 +138,7 @@ class Momentum:
             "type": "MARKET",
             "quoteOrderQty": wallet_info['PHP']['free'],
             "timestamp": server_timestamp,
-            "recvWindow": 10000,
+            "recvWindow": 20000,
         }
 
         order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
@@ -156,21 +151,31 @@ class Momentum:
             response = requests.post(order_url, params=params, headers=headers)
             self.logger.info("Order Response: {}".format(response.json()))
         except Exception as e:
+            with open('/dev/tty8', 'w') as tty:
+                tty.write(e)    
+
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
-        trade = response.json()['fills'][0]
+        try:
+            trade = response.json()['fills'][0]
+        except Exception as e:
+            print(e)
+            self.logger.error(e)
+            print(response.json())
+
         crypto_price = Decimal(trade['price'])
-        risk_percent = Decimal("0.002")
-        reward_percent = Decimal("0.003")
+        risk_percent = Decimal("0.003")
+        reward_percent = Decimal("0.005")
         qty = Decimal(trade['qty'])
         php_converted_commission = Decimal(trade['commission']) * Decimal(trade['price'])
-        #total_fee_php = php_converted_commission * Decimal(2) 
-        break_even_price = crypto_price + (php_converted_commission / qty)
-        take_profit = break_even_price * (1 + reward_percent)
-        stop_loss = crypto_price * (1 - risk_percent)
+        total_fee_php = php_converted_commission * Decimal(2) 
+        
+        break_even_price = (crypto_price + (total_fee_php / qty))
+        take_profit = max(((crypto_price + (total_fee_php / qty)) * (1 + reward_percent)), max_forecast)
+        stop_loss = min((crypto_price * (1 - risk_percent)), min_forecast)
 
-        update_statement = "take_profit={}, stop_loss={}, break_even={}, hold=1, cooldown=10".format(take_profit, stop_loss, break_even_price)
+        update_statement = "take_profit={}, stop_loss={}, break_even={}, hold=1".format(take_profit, stop_loss, break_even_price)
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: {}, Stop Loss: {}".format(take_profit, stop_loss))
@@ -180,11 +185,15 @@ class Momentum:
             tty.write("\n\nBought {} at price: {:.4f}. TP: {:.4f} SL:{:.4f}\n\n".format(self.crypto, crypto_price, take_profit, stop_loss))
 
 
-    def executeTPSL(self, server_timestamp):
+    def executeTPSL(self):
         self.logger.info("Sell Signal Detected")
-        order_url = "openapi/v1/order"
 
-        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance(server_timestamp)
+        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
+
+        order_url = "openapi/v1/order"
+        time_url = host + "openapi/v1/time"
+        server_timestamp = requests.get(time_url).json()["serverTime"]
+
         if self.crypto == "XRP":
             quantity = int(Decimal(wallet_info[self.crypto]['free']) * 100) / 100
         elif self.crypto == "BTC":
@@ -200,7 +209,7 @@ class Momentum:
             "type": "MARKET",
             "quantity": quantity,
             "timestamp": server_timestamp,
-            "recvWindow": 10000,
+            "recvWindow": 20000,
         }
 
         order_url, api_key, params['signature'] = generateTradeSignature(order_url, params)
@@ -213,11 +222,19 @@ class Momentum:
             response = requests.post(order_url, params=params, headers=headers)
             self.logger.info("Order Response: {}".format(response.json()))
         except Exception as e:
+            with open('/dev/tty8', 'w') as tty:
+                tty.write(e)    
+
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
-        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=15"
+        update_statement = "take_profit=0, stop_loss=0, break_even=0, hold=0, cooldown=15, reach_even=0, reach_stoploss=0"
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: 0, Stop Loss: 0")
         self.logger.info("Removed hold")
+
+
+        wallet_info = DataRetrieval(self.crypto, self.crypto+'PHP').getWalletBalance()
+        if float(wallet_info['PHP']['free']) < float(150.0):
+            Database(None).updateDB('User', 'active = 0', "WHERE user_id=1")
