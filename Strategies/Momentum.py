@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from Database.Database import Database
 from Database.DataRetrieval import DataRetrieval
 from Indicators.Signals import Signals
-from Indicators.Indicators import Indicators
+from Indicators.Momentum_Indicators import Indicators
 from Logging.Logger import Logger
 from Coins.GenerateSignature import generateTradeSignature
 from Coins.constants import host
@@ -151,9 +151,6 @@ class Momentum:
             response = requests.post(order_url, params=params, headers=headers)
             self.logger.info("Order Response: {}".format(response.json()))
         except Exception as e:
-            with open('/dev/tty8', 'w') as tty:
-                tty.write(e)    
-
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 
@@ -180,10 +177,6 @@ class Momentum:
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: {}, Stop Loss: {}".format(take_profit, stop_loss))
         self.logger.info("Added hold")
-
-        with open('/dev/tty8', 'w') as tty:
-            tty.write("\n\nBought {} at price: {:.4f}. TP: {:.4f} SL:{:.4f}\n\n".format(self.crypto, crypto_price, take_profit, stop_loss))
-
 
     def executeTPSL(self):
         self.logger.info("Sell Signal Detected")
@@ -221,10 +214,7 @@ class Momentum:
         try:
             response = requests.post(order_url, params=params, headers=headers)
             self.logger.info("Order Response: {}".format(response.json()))
-        except Exception as e:
-            with open('/dev/tty8', 'w') as tty:
-                tty.write(e)    
-
+        except Exception as e:    
             self.logger.error("Error executing order: {}".format(e))
             sys.exit(0)
 

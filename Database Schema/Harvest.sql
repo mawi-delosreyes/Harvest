@@ -22,7 +22,7 @@ CREATE TABLE Cryptocurrency(
 	PRIMARY KEY(crypto_id)
 );
 
-CREATE TABLE XRP(
+CREATE TABLE BTC_5(
 	id INTEGER(11) NOT NULL AUTO_INCREMENT,
 	open_timestamp DATETIME,
 	open DECIMAL(16,6),

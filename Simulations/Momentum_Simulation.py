@@ -2,7 +2,7 @@ import joblib
 import numpy as np
 import warnings
 from Indicators.Signals import Signals
-from Simulations.Indicator_Simulation import Indicator_Simulation
+from Simulations.Momentum_Indicator_Simulation import Indicator_Simulation
 from Database.Database import Database
 from decimal import Decimal
 from Indicators.SMA import SMA

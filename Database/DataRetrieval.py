@@ -25,6 +25,9 @@ class DataRetrieval:
             server_timestamp = requests.get(time_url).json()["serverTime"] - (1 * 60 * 1000)
         elif interval == "5m":
             server_timestamp = requests.get(time_url).json()["serverTime"] - (5 * 60 * 1000)
+
+        # start_milliseconds = last_timestamp
+        # server_timestamp = last_timestamp + 7200000 - 60000
     
         params = {
             "symbol": self.cryptoPair,
@@ -122,10 +125,6 @@ class DataRetrieval:
             crypto_balance = {entry['symbol']: entry for entry in data}
         except Exception as e:
             print(response.json)
-
-            with open('/dev/tty8', 'w') as tty:
-                tty.write(e)   
-                 
         return crypto_balance
     
 
@@ -150,10 +149,6 @@ class DataRetrieval:
             wallet_balance = {entry['asset']: entry for entry in data['balances']}
         except Exception as e:
             print(response.json())
-
-            with open('/dev/tty8', 'w') as tty:
-                tty.write(e)   
-
         return wallet_balance
     
 

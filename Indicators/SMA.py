@@ -19,6 +19,10 @@ class SMA:
             sys.exit(0)
         
         short_sma = sum(self.close_data[-self.short:]) / self.short
-        mid_sma = sum(self.close_data[-self.mid:]) / self.mid
         long_sma = sum(self.close_data[-self.long:]) / self.long
-        self.result = (short_sma, mid_sma, long_sma)
+
+        if self.mid != None:
+            mid_sma = sum(self.close_data[-self.mid:]) / self.mid
+            self.result = (short_sma, mid_sma, long_sma)
+        else:
+            self.result = (short_sma, long_sma)
