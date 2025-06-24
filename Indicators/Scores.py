@@ -43,7 +43,7 @@ class Scores:
 
 
     def ADX(self):
-        if self.adx and self.adx[0] > 25:
+        if self.adx and self.adx[0] > 20:
             self.score += self.weights['adx']
             self.indicators.append("ADX")
 
