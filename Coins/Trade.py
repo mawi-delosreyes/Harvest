@@ -63,7 +63,7 @@ class Trade:
         take_profit = (crypto_price + (total_fee_php / qty)) * (1 + reward_percent)
         stop_loss = crypto_price * (1 - risk_percent)
 
-        update_statement = "take_profit={}, stop_loss={}, break_even={}, cooldown=0, hold=1".format(take_profit, stop_loss, break_even_price)
+        update_statement = "take_profit={}, stop_loss={}, break_even={}, cooldown=15, hold=1".format(take_profit, stop_loss, break_even_price)
         condition = "WHERE crypto_name='{}'".format(self.crypto)
         Database(self.crypto).updateDB('Cryptocurrency', update_statement, condition)
         self.logger.info("Updated Take Profit: {}, Stop Loss: {}".format(take_profit, stop_loss))

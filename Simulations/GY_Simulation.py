@@ -15,7 +15,7 @@ class GYSimulation:
         self.model = joblib.load("Models/btc_classification_model.pkl")
         self.initial_capital = capital
         self.capital = capital
-        self.entry_threshold = 8.5
+        self.entry_threshold = 7.5
 
     def retrieveDatabaseData(self):
         col_names = "crypto.open, crypto.high, crypto.low, crypto.close, crypto.volume"
@@ -40,7 +40,7 @@ class GYSimulation:
 
         data = self.retrieveDatabaseData()
         window = data[:max_periods]
-
+        
         crypto_holdings = {
             self.crypto: {
                 'hold': 0,
@@ -52,18 +52,26 @@ class GYSimulation:
             }
         }
 
+
         for i in range(max_periods, len(data)):   
             btc_indicators = Indicators("BTC", window)
             sma, macd, adx, kijun, obv, rsi, fib, close_price, sma_trend, candle_body = btc_indicators.runIndicators(interval)
             score = Scores(self.crypto, sma, macd, adx, kijun, obv, rsi, fib, close_price, candle_body)
             score, indicators, model_prob = score.ComputeScores()
 
+            if model_prob > 0.8: score += 0.5
+
             if crypto_holdings[self.crypto]['cooldown'] > 0:
                 crypto_holdings[self.crypto]['cooldown'] -= 1
 
+            if adx[0] > 30:  # strong trend
+                self.entry_threshold = 7.0
+            elif adx[0] < 15:  # weak trend
+                self.entry_threshold = 8.0
+
             # Entry
             if not crypto_holdings[self.crypto]['hold'] and crypto_holdings[self.crypto]['cooldown'] == 0:
-                if score >= self.entry_threshold and close_price < sma_trend and model_prob > 0.5:
+                if (score >= self.entry_threshold and close_price < sma_trend and model_prob > 0.5):
                     # print(f"| BUY @ {close_price:.2f} | Score: {score:.1f} | Conditions: {indicators}")
 
                     tp, sl, be = self.executeBuySignal(close_price)
@@ -73,49 +81,48 @@ class GYSimulation:
                         'sl': sl,
                         'be': be,
                         'entry_price': close_price,
-                        'cooldown': 0
+                        'cooldown': 15
                     })
                     trades += 1
             
             # Exit
             if crypto_holdings[self.crypto]['hold']:
+
+                exit_score = 0
+                if sma[0] < sma[1]: exit_score += 1
+                if macd[2] < macd[3]: exit_score += 1
+                if rsi > 70: exit_score += 1
+                if model_prob < 0.4: exit_score += 1
+
+                # TP
                 if close_price >= crypto_holdings[self.crypto]['tp']:
                     gain = float(crypto_holdings[self.crypto]['tp'] - crypto_holdings[self.crypto]['entry_price'])
                     self.capital += gain
                     gross_profit += gain
                     success += 1
-                    crypto_holdings[self.crypto]['hold'] = 0
-                    crypto_holdings[self.crypto]['cooldown'] = 10
-                    # print(f"| TP hit @ {close_price:.2f}")
+                    crypto_holdings[self.crypto].update({'hold': 0, 'cooldown': 15})
 
+                # SL
                 elif close_price <= crypto_holdings[self.crypto]['sl']:
                     loss = float(crypto_holdings[self.crypto]['entry_price'] - crypto_holdings[self.crypto]['sl'])
                     self.capital -= loss
                     gross_loss += loss
                     fail += 1
-                    crypto_holdings[self.crypto]['hold'] = 0
-                    crypto_holdings[self.crypto]['cooldown'] = 15
-                    # print(f"| SL hit @ {close_price:.2f}")
+                    crypto_holdings[self.crypto].update({'hold': 0, 'cooldown': 30})
 
-                else:
-                    exit_score = 0
-                    if sma[0] < sma[1]: exit_score += 1
-                    if macd[2] < macd[3]: exit_score += 1
-                    if rsi > 70: exit_score += 1
-                    if model_prob < 0.4: exit_score += 1
+                # Early exit
+                elif exit_score >= 3:
+                    gain_or_loss = close_price - crypto_holdings[self.crypto]['entry_price']
+                    self.capital += float(gain_or_loss)
+                    if gain_or_loss > 0:
+                        gross_profit += float(gain_or_loss)
+                        success += 1
+                    else:
+                        gross_loss += float(-gain_or_loss)
+                        fail += 1
+                    crypto_holdings[self.crypto].update({'hold': 0, 'cooldown': 10})
+                    # print(f"| Early exit @ {close_price:.2f} | Score: {exit_score}")
 
-                    if exit_score >= 3:
-                        gain_or_loss = close_price - crypto_holdings[self.crypto]['entry_price']
-                        self.capital += float(gain_or_loss)
-                        if gain_or_loss > 0:
-                            gross_profit += float(gain_or_loss)
-                            success += 1
-                        else:
-                            gross_loss += float(-gain_or_loss)
-                            fail += 1
-                        crypto_holdings[self.crypto]['hold'] = 0
-                        crypto_holdings[self.crypto]['cooldown'] = 10 
-                        # print(f"| Early exit @ {close_price:.2f} | Score: {exit_score}")
 
             window.pop(0)
             window.append(data[i])

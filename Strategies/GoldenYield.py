@@ -26,8 +26,8 @@ class GoldenYield:
         self.sma_trend = None
         self.macd_diff = None
         self.candle_body = None
-        self.entry_threshold = 8.5
-        self.score = None
+        self.entry_threshold = 7.5
+        self.buy_score = None
         self.verdict = None
         self.logger = Logger(crypto)
     
@@ -37,33 +37,44 @@ class GoldenYield:
         self.sma, self.macd, self.adx, self.kijun, self.obv, self.rsi, self.fib, self.close_price, self.sma_trend, self.candle_body = indicator.runIndicators(interval)
         
 
-    def Strategy(self, crypto, cooldown, interval, hold, tp, sl):
+    def Strategy(self, crypto, cooldown, interval, hold, tp, be, sl):
 
         self.Indicators(crypto, interval)
         score = Scores(self.crypto, self.sma, self.macd, self.adx, self.kijun, self.obv, self.rsi, self.fib, self.close_price, self.candle_body)
-        self.score, indicators, model_prob = score.ComputeScores()
+        self.buy_score, indicators, model_prob = score.ComputeScores()
 
-        self.logger.info(f"Score: {self.score}, Indicators: {indicators}, Model Probability: {model_prob}")
-        
+        if model_prob > 0.8: self.buy_score += 0.5
+
+        if self.adx[0] > 30:  # strong trend
+            self.entry_threshold = 7.0
+        elif self.adx[0] < 15:  # weak trend
+            self.entry_threshold = 8.0
+
         crypto_data = DataRetrieval(crypto, crypto + "PHP").getPrice(True, "1m")
         crypto_price = float(crypto_data[4])
+        self.logger.info(f"Score: {self.buy_score}, Indicators: {indicators}, Model Probability: {model_prob}")
 
         # Entry logic
         if not hold and cooldown == 0:
-            if score >= self.entry_threshold and crypto_price < self.sma_trend and model_prob > 0.5:
+            if self.buy_score >= self.entry_threshold and crypto_price < self.sma_trend and model_prob > 0.5:
                 self.verdict = "buy"
 
         # Exit logic
         if hold:
-            if crypto_price >= tp:
-                self.verdict = "take profit"
-            elif crypto_price <= sl:
-                self.verdict = "stop loss"
-            else:
-                exit_score = 0
-                if self.sma[0] < self.sma[1]: exit_score += 1
-                if self.macd[2] < self.macd[3]: exit_score += 1
-                if self.rsi > 70: exit_score += 1
-                if model_prob < 0.4: exit_score += 1   
+            exit_score = 0
+            if self.sma[0] < self.sma[1]: exit_score += 1
+            if self.macd[2] < self.macd[3]: exit_score += 1
+            if self.rsi > 70: exit_score += 1
+            if model_prob < 0.4: exit_score += 1 
 
-                if exit_score >= 3: self.verdict = "exit"
+            # TP
+            if self.close_price >= tp:
+                self.verdict = "take profit"
+
+            # SL  
+            elif self.close_price <= sl:
+                self.verdict = "stop loss"
+
+            # Early Exit
+            elif exit_score >= 3:
+                self.verdict = "exit"

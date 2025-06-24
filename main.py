@@ -45,9 +45,7 @@ class Harvest:
                 'take_profit': entry[2],
                 'break_even': entry[3],
                 'stop_loss': entry[4],
-                'cooldown': entry[5],
-                'reach_even': entry[6],
-                'reach_stoploss': entry[7]
+                'cooldown': entry[5]
             }
             for entry in hold
         }
@@ -56,13 +54,14 @@ class Harvest:
         btc_cooldown = crypto_holdings[crypto]['cooldown']
         btc_hold = crypto_holdings[crypto]['hold']
         btc_tp = crypto_holdings[crypto]['take_profit']
+        btc_be = crypto_holdings[crypto]['break_even']
         btc_sl = crypto_holdings[crypto]['stop_loss']
-        btc_trading = threading.Thread(target=btc.Strategy, args=(crypto, btc_cooldown, interval, btc_hold, btc_tp, btc_sl))
+        btc_trading = threading.Thread(target=btc.Strategy, args=(crypto, btc_cooldown, interval, btc_hold, btc_tp, btc_be, btc_sl))
         btc_trading.start()
         btc_trading.join()      
 
         crypto_scores = {
-            "BTC": btc.score
+            "BTC": btc.buy_score
         }
 
         uptred_filter = {k: v for k, v in crypto_scores.items() if v is not None and v > 0}
@@ -80,9 +79,9 @@ class Harvest:
                 if btc.verdict == "buy" and crypto_holdings[crypto]['cooldown'] == 0:
                     trade.executeBuySignal()
                 elif btc.verdict == "take profit":
-                    trade.executeTPSL(10)
-                elif btc.verdict == "stop loss":
                     trade.executeTPSL(15)
+                elif btc.verdict == "stop loss":
+                    trade.executeTPSL(30)
                 elif btc.verdict == "exit":
                     trade.executeTPSL(10)
 

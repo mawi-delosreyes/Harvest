@@ -26,7 +26,7 @@ class Scores:
             'adx': 2.0,
             'kijun': 1.5,
             'obv': 1.0,
-            'model': 3.0
+            'model': 3.5
         }
 
 
@@ -43,7 +43,7 @@ class Scores:
 
 
     def ADX(self):
-        if self.adx and self.adx[0] > 30:
+        if self.adx and self.adx[0] > 25:
             self.score += self.weights['adx']
             self.indicators.append("ADX")
 
@@ -67,13 +67,14 @@ class Scores:
         
 
     def RSI(self):
-        if self.rsi < 40:
+        if self.rsi < 35:
             self.score += self.weights['rsi']
             self.indicators.append("RSI")
 
     
     def Fibonacci(self):
-        if self.fib and self.fib['0.5'] and self.fib['0.382'] and self.fib['0.382'] < self.close_price < self.fib['0.5']:
+        # if self.fib and self.fib['0.382'] and self.fib['0.236'] and self.fib['0.236'] < self.close_price < self.fib['0.382']:
+        if self.fib and self.fib.get('0.5') and self.fib.get('0.382') and self.fib['0.382'] < self.close_price < self.fib['0.5']:
             self.score += self.weights['fib']
             self.indicators.append("FIB")
 
